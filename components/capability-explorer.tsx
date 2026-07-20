@@ -204,7 +204,6 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
   ].filter((id): id is string => Boolean(id));
   const mapActiveCapability = previewedCapability
     ?? (expanded && availableCapabilityIds.includes(expanded) ? expanded : null)
-    ?? availableCapabilityIds[0]
     ?? null;
 
   useEffect(() => {
@@ -643,7 +642,10 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
                     active={mapActiveCapability === capability.id}
                     pinned={expanded === capability.id}
                     onPreview={setPreviewedCapability}
-                    onPin={() => setExpanded(capability.id)}
+                    onPin={() => {
+                      setPreviewedCapability(null);
+                      setExpanded((current) => current === capability.id ? null : capability.id);
+                    }}
                   />)}
                   <div className="capability-map-status">{capabilityStatus}</div>
                 </div> : null}
@@ -664,6 +666,7 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
                       onClick={() => {
                         setSelectedMint(variant.mint);
                         setPreviewedCapability(null);
+                        setExpanded(null);
                         requestAnimationFrame(() => stageScroll.current?.scrollTo({ top: 0, behavior: preferredScrollBehavior() }));
                       }}
                     >
