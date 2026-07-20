@@ -128,14 +128,32 @@ function capabilityConclusion(assetName: string, available: { trade: boolean; ea
 }
 
 type ExplorerProps = { assets: Asset[]; capabilityCoverage: CapabilityCoverageIndex; initialDetail: AssetDetail | null; initialMint?: string; initialError?: string | null };
+type CapabilityMapPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "middle-left" | "middle-right";
 type CapabilityPresentation = {
   id: "trade" | "earn" | "borrow" | "liquidity";
-  position: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  position: CapabilityMapPosition;
   icon: React.ReactNode;
   title: string;
   summary: string;
   mapSummary: string;
   detail: React.ReactNode;
+};
+
+const capabilityMapLayouts: Record<number, readonly CapabilityMapPosition[]> = {
+  0: [],
+  1: ["middle-left"],
+  2: ["middle-left", "middle-right"],
+  3: ["middle-left", "top-right", "bottom-right"],
+  4: ["top-left", "top-right", "bottom-left", "bottom-right"],
+};
+
+const capabilityMapEndpoints: Record<CapabilityMapPosition, { x: string; y: string }> = {
+  "top-left": { x: "20", y: "18" },
+  "top-right": { x: "80", y: "18" },
+  "bottom-left": { x: "20", y: "82" },
+  "bottom-right": { x: "80", y: "82" },
+  "middle-left": { x: "20", y: "50" },
+  "middle-right": { x: "80", y: "50" },
 };
 
 export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, initialMint, initialError = null }: ExplorerProps) {
@@ -436,7 +454,7 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
     }
   }
 
-  const capabilityPresentations: CapabilityPresentation[] = [
+  const baseCapabilityPresentations: CapabilityPresentation[] = [
     ...(canTrade ? [{
       id: "trade" as const,
       position: "top-left" as const,
@@ -474,6 +492,11 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
       detail: <div className="capability-support"><p className="capability-explanation">Add this version to a trading pool and earn a share of fees when people trade.</p><LiquidityCapabilityList records={liquidityCapabilities} /></div>,
     }] : []),
   ];
+  const capabilityLayout = capabilityMapLayouts[baseCapabilityPresentations.length] ?? capabilityMapLayouts[4];
+  const capabilityPresentations = baseCapabilityPresentations.map((capability, index) => ({
+    ...capability,
+    position: capabilityLayout[index] ?? capability.position,
+  }));
 
   const capabilityStatus = <>
     {!selectedProtocolCapabilities && !capabilityRequestFailed ? <p className="capability-checking">Checking more capabilities…</p> : null}
@@ -623,14 +646,17 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
                   }}
                 >
                   <svg className="capability-map-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    {capabilityPresentations.map((capability) => <line
-                      key={capability.id}
-                      x1="50"
-                      y1="50"
-                      x2={capability.position.endsWith("left") ? "20" : "80"}
-                      y2={capability.position.startsWith("top") ? "18" : "82"}
-                      data-active={mapActiveCapability === capability.id || undefined}
-                    />)}
+                    {capabilityPresentations.map((capability) => {
+                      const endpoint = capabilityMapEndpoints[capability.position];
+                      return <line
+                        key={capability.id}
+                        x1="50"
+                        y1="50"
+                        x2={endpoint.x}
+                        y2={endpoint.y}
+                        data-active={mapActiveCapability === capability.id || undefined}
+                      />;
+                    })}
                   </svg>
                   <div className="capability-map-center" aria-label={`Selected version ${selectedVariant.symbol}`}>
                     <strong>{selectedVariant.symbol}</strong>
