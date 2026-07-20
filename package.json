@@ -1,0 +1,43 @@
+{
+  "name": "capability-map",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "audit:tokens": "tsx scripts/audit-tokens.ts",
+    "audit:kamino": "tsx scripts/audit-kamino.ts",
+    "audit:capabilities": "tsx scripts/audit-capabilities.ts",
+    "check:acceptance": "node scripts/check-capability-acceptance.mjs",
+    "inventory:venues": "tsx scripts/inventory-venues.ts",
+    "verify:tokens": "npm run audit:tokens && npm run inventory:venues",
+    "probe:meteora": "tsx scripts/probe-meteora.ts",
+    "probe:raydium": "tsx scripts/probe-raydium.ts",
+    "probe:orca": "tsx scripts/probe-orca.ts",
+    "verify:preview": "npm run check:acceptance && npm run typecheck && npm run lint && npm test && npm run build"
+  },
+  "dependencies": {
+    "lucide-react": "1.24.0",
+    "next": "16.2.10",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.10",
+    "tsx": "^4.23.0",
+    "typescript": "6.0.3",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
+  }
+}
