@@ -148,12 +148,12 @@ const capabilityMapLayouts: Record<number, readonly CapabilityMapPosition[]> = {
 };
 
 const capabilityMapEndpoints: Record<CapabilityMapPosition, { x: string; y: string }> = {
-  "top-left": { x: "20", y: "18" },
-  "top-right": { x: "80", y: "18" },
-  "bottom-left": { x: "20", y: "82" },
-  "bottom-right": { x: "80", y: "82" },
-  "middle-left": { x: "20", y: "50" },
-  "middle-right": { x: "80", y: "50" },
+  "top-left": { x: "23", y: "25" },
+  "top-right": { x: "77", y: "25" },
+  "bottom-left": { x: "23", y: "75" },
+  "bottom-right": { x: "77", y: "75" },
+  "middle-left": { x: "23", y: "50" },
+  "middle-right": { x: "77", y: "50" },
 };
 
 export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, initialMint, initialError = null }: ExplorerProps) {
@@ -638,6 +638,7 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
 
                 {capabilityPresentations.length ? <div
                   className="capability-map-view"
+                  data-capability-count={capabilityPresentations.length}
                   aria-label="Verified capability map"
                   onKeyDown={(event) => {
                     if (event.key !== "Escape") return;
