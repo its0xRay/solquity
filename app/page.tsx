@@ -2,11 +2,12 @@ import { CapabilityExplorer } from "@/components/capability-explorer";
 import { defaultCapabilityAsset, getCapabilityCoverage, preferredCapabilityMint } from "@/lib/capability-coverage";
 import { getAssetDetail, getUniverse } from "@/lib/tokens";
 import { clientAssets } from "@/lib/client-assets";
+import { parseScenario } from "@/lib/scenario";
 
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ asset?: string; mint?: string }>;
+  searchParams: Promise<{ asset?: string; mint?: string; mode?: string; amount?: string; days?: string; loan?: string; decline?: string }>;
 }) {
   const assets = await getUniverse();
   const capabilityCoverage = getCapabilityCoverage();
@@ -25,5 +26,5 @@ export default async function Home({
   }
 
   const initialAsset = assets.find((asset) => asset.assetId === preferredId) ?? defaultAsset;
-  return <CapabilityExplorer assets={clientAssets(assets)} capabilityCoverage={capabilityCoverage} initialDetail={initialDetail} initialMint={requested.mint ?? (initialAsset ? preferredCapabilityMint(initialAsset, capabilityCoverage) : undefined)} initialError={initialError} />;
+  return <CapabilityExplorer assets={clientAssets(assets)} capabilityCoverage={capabilityCoverage} initialDetail={initialDetail} initialMint={requested.mint ?? (initialAsset ? preferredCapabilityMint(initialAsset, capabilityCoverage) : undefined)} initialError={initialError} initialScenario={parseScenario(requested)} />;
 }
