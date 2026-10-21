@@ -7,6 +7,7 @@ import type { ProtocolCacheEntry } from "@/lib/protocol-cache";
 import { isProtocolCacheFresh } from "@/lib/protocol-cache";
 import { mergeProtocolResponse, protocolForDisplay } from "@/lib/progressive-data";
 import { lendingIncome, loanRatio, positiveAmount, type ScenarioInputs, type ScenarioMode } from "@/lib/scenario";
+import { trackEvent } from "@/lib/analytics";
 
 const dollars = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 const wholeDollars = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -101,6 +102,7 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange, onBac
   async function copyScenario() {
     try {
       await navigator.clipboard.writeText(window.location.href);
+      trackEvent("scenario_copied", {asset: detail.asset.assetId, action: mode});
       setCopyState("copied");
       window.setTimeout(() => setCopyState("idle"), 2000);
     } catch { setCopyState("error"); }

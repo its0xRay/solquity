@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ScenarioExplorer } from "./scenario-explorer";
+import { ANALYTICS_NAVIGATION, trackEvent } from "@/lib/analytics";
 import { StockStrip } from "./stock-strip";
 import { assetUrl } from "@/lib/asset-url";
 import { mergeAssetDetail, mergeProtocolResponse, protocolForDisplay } from "@/lib/progressive-data";
@@ -347,6 +348,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
     if (!detail || !selectedVariant) return;
     const url = assetUrl({assetId:detail.asset.assetId,variant:selectedVariant,variants:detail.variants,defaultMint:preferredCapabilityMint(detail.asset,capabilityCoverage),scenario,home:homeRoute});
     window.history.replaceState(null, "", url);
+    window.dispatchEvent(new Event(ANALYTICS_NAVIGATION));
   }, [detail, selectedVariant, scenario, capabilityCoverage, homeRoute]);
 
   function overview(asset: Asset, force = false) {
@@ -386,6 +388,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
   }
 
   async function selectAsset(asset: Asset, force = false) {
+    if (!force && detail?.asset.assetId !== asset.assetId) trackEvent("stock_selected", {asset: asset.assetId});
     setSearchDialogOpen(false);
     setScenario(current => ({ ...current, mode: null }));
     const cached = cache.current.get(asset.assetId);
