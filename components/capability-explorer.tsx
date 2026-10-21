@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ScenarioExplorer } from "./scenario-explorer";
+import { StockStrip } from "./stock-strip";
 import { positiveAmount, type ScenarioInputs, type ScenarioMode } from "@/lib/scenario";
 import { preferredCapabilityMint, type CapabilityCoverageIndex } from "@/lib/capability-coverage";
 import type { Asset, AssetDetail, CapabilityRecord, ProtocolCapabilityResponse, RiskSummary, Variant, VenueMarket } from "@/lib/types";
@@ -315,7 +316,7 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
     if (detail?.asset.assetId === asset.assetId && canUseCache) {
       setQuery("");
       setSearchOpen(false);
-      document.getElementById("capability-stage")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.scrollTo({ top: 0, behavior: preferredScrollBehavior() });
       return;
     }
 
@@ -339,7 +340,7 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
       requestAnimationFrame(() => {
         const behavior = preferredScrollBehavior();
         stageScroll.current?.scrollTo({ top: 0, behavior });
-        document.getElementById("capability-stage")?.scrollIntoView({ behavior, block: "start" });
+        window.scrollTo({ top: 0, behavior });
       });
     } catch (reason) {
       if (sequence === requestSequence.current) {
@@ -477,6 +478,8 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
         </dialog>
       </header>
 
+      <StockStrip assets={assets} coverage={capabilityCoverage} selectedId={detail?.asset.assetId} onSelect={asset => { void selectAsset(asset); }} />
+
       {scenario.mode && detail && selectedVariant ? <ScenarioExplorer
         key={detail.asset.assetId}
         detail={detail}
@@ -488,7 +491,6 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
         cached={protocolCapabilitiesByMint}
         issuerLabel={variant => issuerPresentation(variant).label}
       /> : <section className="capability-stage" id="capability-stage" ref={stageScroll} aria-label="Capability spotlight" aria-busy={Boolean(loadingId)}>
-        <nav className="breadcrumbs" aria-label="Breadcrumb"><Link href="/browse">All assets</Link><span>/</span><span>{detail?.asset.name ?? "Explore"}</span></nav>
         {loadingId ? <StageSkeleton /> : detail && selectedVariant ? (
           <>
             <header className="stage-header">
@@ -548,7 +550,6 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
                   {scenario.amount !== "" && positiveAmount(scenario.amount) === null ? <p className="input-error">Enter an amount up to $1 billion.</p> : null}
                   <div className="try-amount-actions"><button className="primary-button" type="button" onClick={() => openScenario("lend")}>What could I earn?<ArrowRight size={16} /></button><button className="outline-button" type="button" onClick={() => openScenario("borrow")}>What could I borrow?<ArrowRight size={16} /></button></div>
                 </section>
-                <section className="about-version"><p className="eyebrow">About this version</p><dl><div><dt>Provider</dt><dd>{issuerPresentation(selectedVariant).label}</dd></div><div><dt>Token</dt><dd>{selectedVariant.symbol}</dd></div><div><dt>Redemption</dt><dd>{structureCopy(selectedVariant.stockVariantTier).label}</dd></div></dl><StructureNote variant={selectedVariant} /></section>
                 <section className="version-context" aria-label="Version context"><VariantDetails variant={selectedVariant} marketResult={selectedMarketResult} marketScore={selectedRisk} /></section>
               </aside>
             </div>
@@ -782,7 +783,11 @@ function VariantDetails({ variant, marketResult, marketScore }: { variant: Varia
       setCopied(false);
     }
   }
-  return <details className="variant-details" open><summary>Technical details</summary><div>
+  return <details className="variant-details"><summary>Technical details</summary><div>
+    <p><span>Provider</span><strong>{issuerPresentation(variant).label}</strong></p>
+    <p><span>Token</span><strong>{variant.symbol}</strong></p>
+    <p><span>Redemption</span><strong>{structureCopy(variant.stockVariantTier).label}</strong></p>
+    <StructureNote variant={variant} />
     <p><span>Mint</span><code>{variant.mint.slice(0, 6)}…{variant.mint.slice(-6)}</code><button type="button" onClick={copyMint}>{copied ? "Copied" : "Copy"}</button></p>
     <p><span>Liquidity</span><strong>{variant.market?.liquidity != null ? compactMoney(variant.market.liquidity) : "Not reported"}</strong></p>
     <p><span>24h volume</span><strong>{variant.market?.volume24hUSD != null ? compactMoney(variant.market.volume24hUSD) : "Not reported"}</strong></p>

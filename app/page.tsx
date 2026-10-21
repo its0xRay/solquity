@@ -9,9 +9,9 @@ export default async function Home({
 }: {
   searchParams: Promise<{ asset?: string; mint?: string; mode?: string; amount?: string; days?: string; loan?: string; decline?: string }>;
 }) {
+  const requested = await searchParams;
   const assets = await getUniverse();
   const capabilityCoverage = getCapabilityCoverage();
-  const requested = await searchParams;
   const defaultAsset = defaultCapabilityAsset(assets, capabilityCoverage);
   const requestedAsset = requested.asset ? assets.find((asset) => asset.assetId === requested.asset) : undefined;
   const preferredId = requested.asset ? requestedAsset?.assetId : defaultAsset?.assetId;

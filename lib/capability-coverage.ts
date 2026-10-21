@@ -100,6 +100,8 @@ export function featuredAssets(assets: Asset[], coverage: CapabilityCoverageInde
 }
 
 export function defaultCapabilityAsset(assets: Asset[], coverage: CapabilityCoverageIndex) {
+  const tesla = assets.find((asset) => asset.assetId === "tesla" || asset.symbol === "TSLA");
+  if (tesla) return tesla;
   const candidates = capabilityLedAssets(assets, coverage, assets.length);
   return candidates.find((asset) => asset.category === "equity") ?? candidates[0] ?? assets[0];
 }

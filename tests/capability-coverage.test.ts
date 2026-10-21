@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { buildCapabilityCoverage, featuredAssets, preferredCapabilityMint, type CapabilityCoverageIndex } from "../lib/capability-coverage";
+import { buildCapabilityCoverage, defaultCapabilityAsset, featuredAssets, preferredCapabilityMint, type CapabilityCoverageIndex } from "../lib/capability-coverage";
 import type { Asset } from "../lib/types";
 
 describe("capability coverage presentation", () => {
+  it("opens Tesla by default and retains a fallback when Tesla is absent", () => {
+    const coverage = buildCapabilityCoverage({ assets: [], variants: [] });
+    const nvidia: Asset = { assetId: "nvidia", name: "NVIDIA", symbol: "NVDA", category: "equity" };
+    const tesla: Asset = { assetId: "tesla", name: "Tesla", symbol: "TSLA", category: "equity" };
+    expect(defaultCapabilityAsset([nvidia, tesla], coverage)).toBe(tesla);
+    expect(defaultCapabilityAsset([nvidia], coverage)).toBe(nvidia);
+    expect(defaultCapabilityAsset([], coverage)).toBeUndefined();
+  });
   it("orders actions in the user-facing sequence", () => {
     const coverage = buildCapabilityCoverage({
       assets: [{ assetId: "example", capabilities: ["borrow", "other", "trade", "liquidity", "earn"] }],
