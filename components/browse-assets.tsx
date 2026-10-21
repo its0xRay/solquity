@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { preferredCapabilityMint, type CapabilityCoverageIndex, type VisibleCapabilityKind } from "@/lib/capability-coverage";
 import type { Asset } from "@/lib/types";
+import { stockPath } from "@/lib/asset-url";
 
 type AssetType = "all" | "equity" | "etf";
 
@@ -62,7 +63,7 @@ export function BrowseAssets({ assets, capabilityCoverage, initialQuery = "", in
       {filtered.length ? <div className="browse-grid">{filtered.map((asset) => {
         const preferredMint = preferredCapabilityMint(asset, capabilityCoverage);
         const capabilities = preferredMint ? capabilityCoverage.byMint[preferredMint] ?? [] : [];
-        return <Link key={asset.assetId} href={`/?asset=${encodeURIComponent(asset.assetId)}${preferredMint ? `&mint=${encodeURIComponent(preferredMint)}` : ""}`}>
+        return <Link key={asset.assetId} href={stockPath(asset.assetId)}>
           {asset.imageUrl ? <img src={asset.imageUrl} alt="" width="44" height="44" loading="lazy" decoding="async" /> : <span className="logo-fallback">{(asset.symbol ?? "?").slice(0,2)}</span>}
           <span><strong>{asset.name}</strong><small>{asset.symbol} · {asset.category === "etf" ? "ETF" : "Stock"}</small></span>
           <span className="browse-capabilities">{capabilities.length

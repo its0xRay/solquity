@@ -20,19 +20,29 @@ const lastGoodRisk = new Map<string, CachedValue<RiskSummary>>();
 const lastGoodRiskDetails = new Map<string, CachedValue<RiskSummary>>();
 const lastGoodDescriptions = new Map<string, CachedValue<VariantDescription>>();
 const lastGoodCharts = new Map<string, CachedValue<PriceCandle[]>>();
+const inFlightSources = new WeakMap<object, Map<string, Promise<SourceResult<unknown>>>>();
 
 function cacheKey(assetId: string, mint: string) { return `${assetId}:${mint}`; }
 
 async function withLastGood<T>(key: string, cache: Map<string, CachedValue<T>>, request: () => Promise<T>): Promise<SourceResult<T>> {
-  try {
-    const data = await request();
-    const observedAt = Date.now();
-    cache.set(key, { data, observedAt });
-    return sourceSuccess(data, observedAt);
-  } catch (error) {
-    const previous = cache.get(key);
-    return previous ? sourceStale(previous.data, previous.observedAt, error) : sourceFailure<T>(error);
-  }
+  const previous = cache.get(key);
+  if (previous && Date.now() - previous.observedAt < METRICS * 1000) return sourceSuccess(previous.data,previous.observedAt);
+  let pending = inFlightSources.get(cache);
+  if (!pending) { pending = new Map(); inFlightSources.set(cache,pending); }
+  const existing = pending.get(key);
+  if (existing) return existing as Promise<SourceResult<T>>;
+  const refresh = (async () => {
+    try {
+      const data = await request();
+      const observedAt = Date.now();
+      cache.set(key, { data, observedAt });
+      return sourceSuccess(data, observedAt);
+    } catch (error) {
+      return previous ? sourceStale(previous.data, previous.observedAt, error) : sourceFailure<T>(error);
+    }
+  })().finally(() => pending!.delete(key));
+  pending.set(key,refresh);
+  return refresh;
 }
 
 async function getCuratedList(list: "stocks" | "etfs") {
@@ -106,23 +116,34 @@ export async function getVariantMarkets(assetId: string, mint: string): Promise<
   return withLastGood(cacheKey(assetId, mint), lastGoodMarkets, () => getAllMarkets(assetId, mint));
 }
 
-export async function getAssetDetail(assetId: string): Promise<AssetDetail> {
+export async function getAssetOverview(assetId: string): Promise<AssetDetail> {
   const [detail, variantData] = await Promise.all([
     tokensFetch(`/assets/${encodeURIComponent(assetId)}?include=profile&variantsMode=all&primaryVariantStrategy=liquidity`, detailResponseSchema, { revalidate: DAY }),
-    tokensFetch(`/assets/${encodeURIComponent(assetId)}/variants?variantsMode=all&sortBy=liquidity`, variantsResponseSchema, { revalidate: DAY }),
+    tokensFetch(`/assets/${encodeURIComponent(assetId)}/variants?variantsMode=all&sortBy=liquidity`, variantsResponseSchema, { revalidate: METRICS }),
   ]);
 
   const variants = variantData.variants as Variant[];
+  return { asset: detail.asset as Asset, variants, marketResultsByMint: {}, displayMarketsByMint: {}, displayCapabilitiesByMint: {}, riskResultsByMint: {}, fetchedAt: Date.now() };
+}
+
+export async function getVariantRisk(assetId: string, mint: string) {
+  return withLastGood(cacheKey(assetId, mint), lastGoodRisk, () => tokensFetch(
+    `/assets/${encodeURIComponent(assetId)}/risk-summary?mint=${encodeURIComponent(mint)}`, riskResponseSchema, { revalidate: METRICS },
+  ) as Promise<RiskSummary>);
+}
+
+export async function getAssetDetail(assetId: string, options: { mint?: string; includeRisk?: boolean } = {}): Promise<AssetDetail> {
+  const overview = await getAssetOverview(assetId);
+  const variants = options.mint ? overview.variants.filter(variant => variant.mint === options.mint) : overview.variants;
+  if (options.mint && !variants.length) throw new Error("Mint does not belong to this asset");
   const [marketEntries, riskEntries] = await Promise.all([
     Promise.all(variants.map(async (variant) => [
       variant.mint,
       await getVariantMarkets(assetId, variant.mint),
     ] as const)),
-    Promise.all(variants.map(async (variant) => [
+    Promise.all((options.includeRisk === false ? [] : variants).map(async (variant) => [
       variant.mint,
-      await withLastGood(cacheKey(assetId, variant.mint), lastGoodRisk, () => tokensFetch(
-        `/assets/${encodeURIComponent(assetId)}/risk-summary?mint=${encodeURIComponent(variant.mint)}`, riskResponseSchema, { revalidate: METRICS },
-      ) as Promise<RiskSummary>),
+      await getVariantRisk(assetId, variant.mint),
     ] as const)),
   ]);
 
@@ -149,8 +170,8 @@ export async function getAssetDetail(assetId: string): Promise<AssetDetail> {
   }));
 
   return {
-    asset: detail.asset as Asset,
-    variants,
+    asset: overview.asset,
+    variants: overview.variants,
     marketResultsByMint,
     displayMarketsByMint,
     displayCapabilitiesByMint,

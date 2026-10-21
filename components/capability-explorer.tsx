@@ -18,6 +18,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ScenarioExplorer } from "./scenario-explorer";
 import { StockStrip } from "./stock-strip";
+import { assetUrl } from "@/lib/asset-url";
+import { mergeAssetDetail, mergeProtocolResponse, protocolForDisplay } from "@/lib/progressive-data";
+import { sourceFailure, sourceStale } from "@/lib/source-result";
 import { positiveAmount, type ScenarioInputs, type ScenarioMode } from "@/lib/scenario";
 import { preferredCapabilityMint, type CapabilityCoverageIndex } from "@/lib/capability-coverage";
 import type { Asset, AssetDetail, CapabilityRecord, ProtocolCapabilityResponse, RiskSummary, Variant, VenueMarket } from "@/lib/types";
@@ -130,7 +133,7 @@ function capabilityConclusion(assetName: string, available: { trade: boolean; ea
   return actions.length ? `This version of ${assetName} lets you ${humanList(actions)}.` : null;
 }
 
-type ExplorerProps = { assets: Asset[]; capabilityCoverage: CapabilityCoverageIndex; initialDetail: AssetDetail | null; initialMint?: string; initialError?: string | null; initialScenario: ScenarioInputs };
+type ExplorerProps = { assets: Asset[]; capabilityCoverage: CapabilityCoverageIndex; initialDetail: AssetDetail | null; initialMint?: string; initialError?: string | null; initialScenario: ScenarioInputs; homeRoute?: boolean; loadUniverse?: boolean };
 type CapabilityPresentation = {
   id: "trade" | "earn" | "borrow" | "liquidity";
   icon: React.ReactNode;
@@ -140,7 +143,8 @@ type CapabilityPresentation = {
   detail: React.ReactNode;
 };
 
-export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, initialMint, initialError = null, initialScenario }: ExplorerProps) {
+export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, initialDetail, initialMint, initialError = null, initialScenario, homeRoute = false, loadUniverse = false }: ExplorerProps) {
+  const [assets, setAssets] = useState(initialAssets);
   const initialSelectedMint = initialDetail?.variants.some((variant) => variant.mint === initialMint)
     ? initialMint ?? ""
     : initialDetail?.variants[0]?.mint ?? "";
@@ -162,6 +166,9 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
     initialDetail ? [[initialDetail.asset.assetId, { detail: initialDetail, cachedAt: initialDetail.fetchedAt }]] : [],
   ));
   const requestSequence = useRef(0);
+  const overviewRequests = useRef(new Map<string, Promise<AssetDetail>>());
+  const riskRequests = useRef(new Map<string, Promise<void>>());
+  const protocolCache = useRef<Record<string, ProtocolCacheEntry>>({});
   const searchDialog = useRef<HTMLDialogElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const searchTrigger = useRef<HTMLButtonElement>(null);
@@ -176,7 +183,7 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
   const confirmedCapabilities = selectedVariant ? detail?.displayCapabilitiesByMint[selectedVariant.mint] ?? [] : [];
   const canTrade = confirmedCapabilities.some((capability) => capability.kind === "trade");
   const selectedProtocolEntry = selectedVariant ? protocolCapabilitiesByMint[selectedVariant.mint] : undefined;
-  const selectedProtocolCapabilities = selectedProtocolEntry?.response;
+  const selectedProtocolCapabilities = selectedProtocolEntry ? protocolForDisplay(selectedProtocolEntry.response, clock) : undefined;
   const externalCapabilities = selectedProtocolCapabilities?.capabilities ?? [];
   const earnCapabilities = externalCapabilities.filter((capability) => capability.kind === "earn");
   const borrowCapabilities = externalCapabilities.filter((capability) => capability.kind === "borrow");
@@ -195,6 +202,43 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
     borrow: borrowCapabilities.length > 0,
     liquidity: liquidityCapabilities.length > 0,
   }) : null;
+  const assetId = detail?.asset.assetId;
+  const activeMint = selectedVariant?.mint;
+
+  useEffect(() => {
+    if (!loadUniverse) return;
+    const controller = new AbortController();
+    fetch("/api/universe", {signal:controller.signal}).then(response => response.ok ? response.json() : null)
+      .then(value => { if (Array.isArray(value?.assets)) setAssets(value.assets); }).catch(() => {});
+    return () => controller.abort();
+  }, [loadUniverse]);
+
+  useEffect(() => {
+    if (!assetId || !activeMint || scenario.mode) return;
+    const existing = cache.current.get(assetId)?.detail.marketResultsByMint[activeMint];
+    if (existing && existing.status === "success" && clock - existing.fetchedAt < 120_000) return;
+    const controller = new AbortController();
+    fetch(`/api/assets/${encodeURIComponent(assetId)}?view=markets&mint=${encodeURIComponent(activeMint)}`, {signal:controller.signal})
+      .then(async response => { if (!response.ok) throw new Error("Market source unavailable"); return response.json() as Promise<AssetDetail>; })
+      .then(next => {
+        const previous = cache.current.get(assetId)?.detail;
+        const merged = previous ? mergeAssetDetail(previous,next) : next;
+        cache.current.set(assetId,{detail:merged,cachedAt:Date.now()});
+        setDetail(current => current?.asset.assetId === assetId ? mergeAssetDetail(current,next) : current);
+      }).catch(reason => {
+        if (controller.signal.aborted) return;
+        const previous = cache.current.get(assetId)?.detail;
+        if (!previous) return;
+        const last = previous.marketResultsByMint[activeMint];
+        const result = last && last.status !== "failed"
+          ? sourceStale(last.data,last.status === "stale" ? last.observedAt : last.fetchedAt,reason)
+          : sourceFailure<VenueMarket[]>(reason);
+        const next = {...previous,marketResultsByMint:{...previous.marketResultsByMint,[activeMint]:result}};
+        cache.current.set(assetId,{detail:next,cachedAt:Date.now()});
+        setDetail(current => current?.asset.assetId === assetId ? mergeAssetDetail(current,next) : current);
+      });
+    return () => controller.abort();
+  }, [assetId, activeMint, clock, scenario.mode]);
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 60_000);
     return () => window.clearInterval(timer);
@@ -233,25 +277,34 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
   }, [searchDialogOpen]);
 
   useEffect(() => {
-    if (!detail || !selectedVariant || isProtocolCacheFresh(protocolCapabilitiesByMint[selectedVariant.mint], clock)) return;
-    const mint = selectedVariant.mint;
-    const controller = new AbortController();
-    fetch(`/api/capabilities?asset=${encodeURIComponent(detail.asset.assetId)}&mint=${encodeURIComponent(mint)}`, { signal: controller.signal })
-      .then(async (response) => {
-        const data = await response.json() as ProtocolCapabilityResponse | { error: string };
-        if ("capabilities" in data) return data;
-        throw new Error(data.error);
-      })
-      .then((result) => {
-        setProtocolCapabilitiesByMint((current) => ({ ...current, [mint]: { response: result, cachedAt: Date.now() } }));
-        setCapabilityErrorsByMint((current) => ({ ...current, [mint]: false }));
-      })
-      .catch((reason) => {
-        if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setCapabilityErrorsByMint((current) => ({ ...current, [mint]: true }));
+    if (!assetId || !activeMint) return;
+    const mint = activeMint;
+    const previous = protocolCache.current[mint];
+    const groups = (scenario.mode ? ["kamino"] : ["kamino", "pools"]).filter(group => {
+      const ids = group === "kamino" ? ["kamino"] : ["meteora","raydium","orca"];
+      return !isProtocolCacheFresh(previous,clock) || !ids.every(id => {
+        const provider = previous?.response.providers[id];
+        return provider && clock - provider.fetchedAt < (provider.status === "failed" ? 15_000 : 120_000);
       });
+    });
+    if (!groups.length) return;
+    const controller = new AbortController();
+    const requests = groups.map(async provider => {
+      const response = await fetch(`/api/capabilities?asset=${encodeURIComponent(assetId)}&mint=${encodeURIComponent(mint)}&provider=${provider}`, {signal:controller.signal});
+      if (!response.ok) throw new Error("Capability providers are temporarily unavailable");
+      const result = await response.json() as ProtocolCapabilityResponse;
+      if (!Array.isArray(result.capabilities) || !result.providers) throw new Error("Capability providers are temporarily unavailable");
+      if (controller.signal.aborted) return;
+      const merged = mergeProtocolResponse(protocolCache.current[mint]?.response, result);
+      const entry = {response:merged,cachedAt:Date.now()};
+      protocolCache.current[mint] = entry;
+      setProtocolCapabilitiesByMint(current => ({...current,[mint]:entry}));
+    });
+    void Promise.allSettled(requests).then(results => {
+      if (!controller.signal.aborted) setCapabilityErrorsByMint(current => ({...current,[mint]:results.some(result => result.status === "rejected")}));
+    });
     return () => controller.abort();
-  }, [clock, detail, selectedVariant, protocolCapabilitiesByMint]);
+  }, [clock, assetId, activeMint, scenario.mode]);
 
   function updateQuery(value: string) {
     setQuery(value);
@@ -292,21 +345,45 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
 
   useEffect(() => {
     if (!detail || !selectedVariant) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("asset", detail.asset.assetId);
-    url.searchParams.set("mint", selectedVariant.mint);
-    for (const key of ["mode", "amount", "days", "loan", "decline"]) url.searchParams.delete(key);
-    if (scenario.mode) {
-      url.searchParams.set("mode", scenario.mode);
-      if (positiveAmount(scenario.amount)) url.searchParams.set("amount", scenario.amount);
-      url.searchParams.set("days", String(scenario.days));
-      if (scenario.mode === "borrow") {
-        if (positiveAmount(scenario.loan)) url.searchParams.set("loan", scenario.loan);
-        url.searchParams.set("decline", String(scenario.decline));
-      }
-    }
+    const url = assetUrl({assetId:detail.asset.assetId,variant:selectedVariant,variants:detail.variants,defaultMint:preferredCapabilityMint(detail.asset,capabilityCoverage),scenario,home:homeRoute});
     window.history.replaceState(null, "", url);
-  }, [detail, selectedVariant, scenario]);
+  }, [detail, selectedVariant, scenario, capabilityCoverage, homeRoute]);
+
+  function overview(asset: Asset, force = false) {
+    const existing = cache.current.get(asset.assetId);
+    if (!force && existing && isDetailCacheFresh(existing)) return Promise.resolve(existing.detail);
+    const pending = overviewRequests.current.get(asset.assetId);
+    if (pending) return pending;
+    const request = fetch(`/api/assets/${encodeURIComponent(asset.assetId)}?view=overview`).then(async response => {
+      if (!response.ok) throw new Error("This asset could not be loaded");
+      const next = await response.json() as AssetDetail;
+      const previous = cache.current.get(asset.assetId)?.detail;
+      const merged = previous ? mergeAssetDetail(previous,next) : next;
+      cache.current.set(asset.assetId,{detail:merged,cachedAt:Date.now()});
+      return merged;
+    }).finally(() => overviewRequests.current.delete(asset.assetId));
+    overviewRequests.current.set(asset.assetId,request);
+    return request;
+  }
+
+  function prefetchAsset(asset: Asset) { void overview(asset).catch(() => {}); }
+
+  function loadTechnicalDetails() {
+    if (!detail || !selectedVariant) return;
+    const id = detail.asset.assetId;
+    const mint = selectedVariant.mint;
+    const key = `${id}:${mint}`;
+    const existing = cache.current.get(id)?.detail.riskResultsByMint[mint];
+    if (existing && existing.status === "success" && Date.now() - existing.fetchedAt < 120_000 || riskRequests.current.has(key)) return;
+    const request = fetch(`/api/assets/${encodeURIComponent(id)}?view=risk&mint=${encodeURIComponent(mint)}`).then(async response => {
+      if (!response.ok) return;
+      const risk = await response.json() as AssetDetail["riskResultsByMint"][string];
+      const previous = cache.current.get(id);
+      if (previous) cache.current.set(id,{...previous,detail:{...previous.detail,riskResultsByMint:{...previous.detail.riskResultsByMint,[mint]:risk}}});
+      setDetail(current => current?.asset.assetId === id ? {...current,riskResultsByMint:{...current.riskResultsByMint,[mint]:risk}} : current);
+    }).catch(() => {}).finally(() => riskRequests.current.delete(key));
+    riskRequests.current.set(key,request);
+  }
 
   async function selectAsset(asset: Asset, force = false) {
     setSearchDialogOpen(false);
@@ -321,15 +398,18 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
     }
 
     const sequence = ++requestSequence.current;
-    setLoadingId(asset.assetId);
+    setLoadingId(cached ? null : asset.assetId);
+    if (cached) {
+      setDetail(cached.detail);
+      const preferred = preferredCapabilityMint(asset,capabilityCoverage);
+      setSelectedMint(cached.detail.variants.some(variant => variant.mint === preferred) ? preferred! : cached.detail.variants[0]?.mint ?? "");
+      setExpanded(null);
+    }
     setError(null);
     setQuery("");
     setSearchOpen(false);
     try {
-      const next: AssetDetail = canUseCache ? cached.detail : await fetch(`/api/assets/${encodeURIComponent(asset.assetId)}`).then(async (response) => {
-        if (!response.ok) throw new Error("This asset could not be loaded");
-        return response.json() as Promise<AssetDetail>;
-      });
+      const next = await overview(asset,force);
       if (sequence !== requestSequence.current) return;
       cache.current.set(asset.assetId, { detail: next, cachedAt: next.fetchedAt });
       setDetail(next);
@@ -386,6 +466,12 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
     }] : []),
   ];
   const capabilityPresentations = baseCapabilityPresentations;
+  const pendingKinds: Record<string, boolean> = {
+    trade: !selectedMarketResult,
+    earn: !kaminoState && !capabilityRequestFailed,
+    borrow: !kaminoState && !capabilityRequestFailed,
+    liquidity: !selectedProtocolCapabilities?.providers.orca && !capabilityRequestFailed,
+  };
 
   function openScenario(mode: ScenarioMode) {
     setScenario(current => ({ ...current, mode }));
@@ -393,11 +479,11 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
   }
 
   const capabilityStatus = <>
-    {!selectedProtocolCapabilities && !capabilityRequestFailed ? <p className="capability-checking">Checking more capabilities…</p> : null}
+    {(!selectedProtocolCapabilities || !["kamino","meteora","raydium","orca"].every(id => selectedProtocolCapabilities.providers[id]) || !selectedMarketResult) && !capabilityRequestFailed ? <p className="capability-checking">Checking more capabilities…</p> : null}
     {capabilityRequestFailed ? <p className="capability-source-error">Some protocol details aren’t available right now. That doesn’t mean an action has disappeared.</p> : null}
     {kaminoState?.status === "failed" ? <p className="capability-source-error">Kamino isn’t answering right now. That doesn’t mean the option is gone.</p> : null}
     {meteoraState?.status === "failed" ? <p className="capability-source-error">Meteora isn’t answering right now. That doesn’t mean the option is gone.</p> : null}
-    {!canTrade && selectedProtocolCapabilities && !earnCapabilities.length && !borrowCapabilities.length && !liquidityCapabilities.length ? <div className="capability-empty"><strong>No verified actions for this version yet.</strong><p>Other stocks can do more on Solana.</p><Link href="/browse">Explore stocks with verified actions</Link></div> : null}
+    {!canTrade && selectedMarketResult && selectedProtocolCapabilities && ["kamino","meteora","raydium","orca"].every(id => selectedProtocolCapabilities.providers[id]) && !earnCapabilities.length && !borrowCapabilities.length && !liquidityCapabilities.length ? <div className="capability-empty"><strong>No verified actions for this version yet.</strong><p>Other stocks can do more on Solana.</p><Link href="/browse">Explore stocks with verified actions</Link></div> : null}
   </>;
 
   return (
@@ -463,6 +549,7 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
                       key={asset.assetId}
                       tabIndex={-1}
                       onPointerMove={() => setActiveSuggestion(index)}
+                      onPointerEnter={() => prefetchAsset(asset)}
                       onClick={() => selectAsset(asset)}
                     >
                       <AssetLogo asset={asset} size={36} />
@@ -478,7 +565,7 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
         </dialog>
       </header>
 
-      <StockStrip assets={assets} coverage={capabilityCoverage} selectedId={detail?.asset.assetId} onSelect={asset => { void selectAsset(asset); }} />
+      <StockStrip assets={assets} coverage={capabilityCoverage} selectedId={detail?.asset.assetId} onSelect={asset => { void selectAsset(asset); }} onPrefetch={prefetchAsset} />
 
       {scenario.mode && detail && selectedVariant ? <ScenarioExplorer
         key={detail.asset.assetId}
@@ -526,7 +613,9 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
                 <div className="capability-tree" aria-label="Capability map">
                   <div className="capability-tree-token"><span className="token-orb" aria-hidden="true">{(detail.asset.symbol ?? "?").slice(0, 1)}</span><strong>{selectedVariant.symbol}</strong><small>{issuerPresentation(selectedVariant).label}</small></div>
                   <div className="capability-tree-branches">
-                    {capabilityPresentations.map(capability => {
+                    {(["trade","earn","borrow","liquidity"] as const).map(kind => {
+                      const capability = capabilityPresentations.find(item => item.id === kind);
+                      if (!capability) return pendingKinds[kind] ? <div className="tree-node node-placeholder" aria-hidden="true" key={kind}><span /><span /></div> : null;
                       let stat = "";
                       if (capability.id === "trade") stat = `${markets.length} ${markets.length === 1 ? "market" : "markets"}`;
                       if (capability.id === "earn") { const value = capabilityMetric(earnCapabilities[0], "supplyApy"); stat = value ? `${formatRatio(value.value)} APY` : "Variable yield"; }
@@ -550,7 +639,7 @@ export function CapabilityExplorer({ assets, capabilityCoverage, initialDetail, 
                   {scenario.amount !== "" && positiveAmount(scenario.amount) === null ? <p className="input-error">Enter an amount up to $1 billion.</p> : null}
                   <div className="try-amount-actions"><button className="primary-button" type="button" onClick={() => openScenario("lend")}>What could I earn?<ArrowRight size={16} /></button><button className="outline-button" type="button" onClick={() => openScenario("borrow")}>What could I borrow?<ArrowRight size={16} /></button></div>
                 </section>
-                <section className="version-context" aria-label="Version context"><VariantDetails variant={selectedVariant} marketResult={selectedMarketResult} marketScore={selectedRisk} /></section>
+                <section className="version-context" aria-label="Version context"><VariantDetails key={selectedVariant.mint} variant={selectedVariant} marketResult={selectedMarketResult} marketScore={selectedRisk} onOpen={loadTechnicalDetails} /></section>
               </aside>
             </div>
           </>
@@ -772,7 +861,7 @@ function LiquidityPoolCards({ records }: { records: CapabilityRecord[] }) {
   })}</div>;
 }
 
-function VariantDetails({ variant, marketResult, marketScore }: { variant: Variant; marketResult?: AssetDetail["marketResultsByMint"][string]; marketScore?: ReturnType<typeof riskScore> }) {
+function VariantDetails({ variant, marketResult, marketScore, onOpen }: { variant: Variant; marketResult?: AssetDetail["marketResultsByMint"][string]; marketScore?: ReturnType<typeof riskScore>; onOpen?: () => void }) {
   const [copied, setCopied] = useState(false);
   async function copyMint() {
     try {
@@ -783,7 +872,7 @@ function VariantDetails({ variant, marketResult, marketScore }: { variant: Varia
       setCopied(false);
     }
   }
-  return <details className="variant-details"><summary>Technical details</summary><div>
+  return <details className="variant-details" onToggle={event => { if (event.currentTarget.open) onOpen?.(); }}><summary>Technical details</summary><div>
     <p><span>Provider</span><strong>{issuerPresentation(variant).label}</strong></p>
     <p><span>Token</span><strong>{variant.symbol}</strong></p>
     <p><span>Redemption</span><strong>{structureCopy(variant.stockVariantTier).label}</strong></p>

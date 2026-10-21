@@ -6,7 +6,7 @@ import { buildCapabilityCoverage } from "../lib/capability-coverage";
 const coverage = buildCapabilityCoverage({ assets: [], variants: [] });
 describe("featured stock strip", () => {
   it("renders stock choices, selected state and an explicit pause control", () => {
-    const html = renderToStaticMarkup(<StockStrip assets={[{assetId:"tesla", name:"Tesla", symbol:"TSLA", category:"equity", stats:{liquidity:1}}]} coverage={coverage} selectedId="tesla" onSelect={() => {}} />);
+    const html = renderToStaticMarkup(<StockStrip assets={[{assetId:"tesla", name:"Tesla", symbol:"TSLA", category:"equity", stats:{liquidity:1}},{assetId:"nvidia",name:"NVIDIA",symbol:"NVDA",category:"equity",stats:{liquidity:2}}]} coverage={coverage} selectedId="tesla" onSelect={() => {}} />);
     expect(html).toContain('aria-label="Featured stocks"');
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('aria-label="Pause stock strip"');

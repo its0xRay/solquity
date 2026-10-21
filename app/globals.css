@@ -129,6 +129,9 @@ em { color: var(--accent); font-style: normal; }
 .capability-tree-branches { position: relative; display: grid; gap: 8px; }
 .capability-tree-branches::before { content: ""; position: absolute; left: -20px; top: 0; bottom: 0; border-left: 1px solid var(--border-strong); }
 .tree-node { position: relative; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+.node-placeholder { min-height: 70px; display: grid; align-content: center; gap: 8px; padding: 12px 16px; }
+.node-placeholder > span { display: block; width: 40%; height: 12px; background: var(--surface-step); border-radius: 4px; }
+.node-placeholder > span + span { width: 65%; height: 10px; }
 .tree-node::before { content: ""; position: absolute; width: 20px; right: 100%; top: 32px; border-top: 1px solid var(--border-strong); }
 .tree-node > button { width: 100%; min-height: 64px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; text-align: left; color: var(--text); background: transparent; border: 0; border-radius: inherit; }
 .tree-node > button:hover { background: var(--surface-raised); }

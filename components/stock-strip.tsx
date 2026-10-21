@@ -11,8 +11,8 @@ export const STRIP_START_DELAY_MS = 700;
 export const STRIP_INTERACTION_PAUSE_MS = 4_000;
 export const STRIP_PIXELS_PER_SECOND = 12;
 
-export function StockStrip({ assets, coverage, selectedId, onSelect }: {
-  assets: Asset[]; coverage: CapabilityCoverageIndex; selectedId?: string; onSelect: (asset: Asset) => void;
+export function StockStrip({ assets, coverage, selectedId, onSelect, onPrefetch }: {
+  assets: Asset[]; coverage: CapabilityCoverageIndex; selectedId?: string; onSelect: (asset: Asset) => void; onPrefetch?: (asset: Asset) => void;
 }) {
   const stocks = featuredAssets(assets, coverage);
   const track = useRef<HTMLDivElement>(null);
@@ -57,9 +57,9 @@ export function StockStrip({ assets, coverage, selectedId, onSelect }: {
     <div className="stock-strip-track" ref={track} onWheel={handleInteractionPause} onPointerDown={handleInteractionPause} onPointerUp={handleInteractionPause}
       onFocusCapture={handleInteractionPause}
       onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) handleInteractionPause(event); }}>
-      {[0, 1].map(copy => <div className="stock-strip-group" key={copy} aria-hidden={copy === 1 ? true : undefined}>
+      {(stocks.length > 1 ? [0, 1] : [0]).map(copy => <div className="stock-strip-group" key={copy} aria-hidden={copy === 1 ? true : undefined}>
         {stocks.map(asset => <button type="button" key={asset.assetId} tabIndex={copy === 1 ? -1 : 0}
-          aria-pressed={asset.assetId === selectedId} onClick={event => { handleInteractionPause(event); onSelect(asset); }}>
+          aria-pressed={asset.assetId === selectedId} onFocus={() => onPrefetch?.(asset)} onPointerDown={() => onPrefetch?.(asset)} onClick={event => { handleInteractionPause(event); onSelect(asset); }}>
           {asset.imageUrl ? <img src={asset.imageUrl} alt="" width={24} height={24} /> : <span className="strip-logo-fallback" aria-hidden="true">{asset.symbol?.slice(0, 1) ?? "?"}</span>}
           <span className="strip-name">{asset.name}</span><span className="strip-symbol">{asset.symbol}</span>
         </button>)}

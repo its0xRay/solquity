@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { AssetDetail, CapabilityRecord, ProtocolCapabilityResponse, Variant } from "@/lib/types";
 import type { ProtocolCacheEntry } from "@/lib/protocol-cache";
 import { isProtocolCacheFresh } from "@/lib/protocol-cache";
+import { mergeProtocolResponse, protocolForDisplay } from "@/lib/progressive-data";
 import { lendingIncome, loanRatio, positiveAmount, type ScenarioInputs, type ScenarioMode } from "@/lib/scenario";
 
 const dollars = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
@@ -58,11 +59,11 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange, onBac
       }
       setPending(current => ({ ...current, [variant.mint]: true }));
       try {
-        const response = await fetch(`/api/capabilities?asset=${encodeURIComponent(detail.asset.assetId)}&mint=${encodeURIComponent(variant.mint)}`, { signal: controller.signal });
+        const response = await fetch(`/api/capabilities?asset=${encodeURIComponent(detail.asset.assetId)}&mint=${encodeURIComponent(variant.mint)}&provider=kamino`, { signal: controller.signal });
         if (!response.ok) throw new Error("Could not refresh");
         const value = await response.json() as ProtocolCapabilityResponse;
         if (!Array.isArray(value.capabilities)) throw new Error("Could not refresh");
-        setResponses(current => ({ ...current, [variant.mint]: value }));
+        setResponses(current => ({ ...current, [variant.mint]: mergeProtocolResponse(current[variant.mint],value) }));
         setErrors(current => ({ ...current, [variant.mint]: false }));
       } catch {
         if (!controller.signal.aborted) setErrors(current => ({ ...current, [variant.mint]: true }));
@@ -81,7 +82,8 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange, onBac
   const amount = positiveAmount(inputs.amount);
   const loan = positiveAmount(inputs.loan);
   const kind = mode === "lend" ? "earn" : "borrow";
-  const allRecords = detail.variants.flatMap(variant => (responses[variant.mint]?.capabilities ?? []).filter(record => record.kind === kind).map(record => ({ variant, record })));
+  const displayResponses = Object.fromEntries(Object.entries(responses).map(([mint,response]) => [mint,protocolForDisplay(response)]));
+  const allRecords = detail.variants.flatMap(variant => (displayResponses[variant.mint]?.capabilities ?? []).filter(record => record.kind === kind).map(record => ({ variant, record })));
   const current = allRecords.find(item => item.record.id === selectedRecord)
     ?? allRecords.find(item => item.variant.mint === selectedMint)
     ?? allRecords[0];
@@ -125,7 +127,7 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange, onBac
       <section className="comparison-list" aria-label="Compare versions">
         <div className="comparison-caption"><span>Across {detail.variants.length} {detail.variants.length === 1 ? "version" : "versions"} · {allRecords.length} {allRecords.length === 1 ? "market" : "markets"}</span><span>{mode === "lend" ? "Estimates use today’s variable rate" : "Compare reported collateral limits"}</span></div>
         {detail.variants.map(variant => {
-          const response = responses[variant.mint];
+          const response = displayResponses[variant.mint];
           const records = (response?.capabilities ?? []).filter(record => record.kind === kind);
           const failed = errors[variant.mint] || response?.providers.kamino?.status === "failed";
           const incomplete = Boolean(response?.providers.kamino?.partial);
