@@ -1,0 +1,9 @@
+{
+  "xstocks-legal": {"hash":"7aa1f0d9ad530f8a432efd1dee9cfd916e5f9f84ef0fe6def1c3cdf4282cad97","reviewedAt":"2026-10-25"},
+  "xstocks-dividends": {"hash":"e686914aad8274d2db0c297e8b2c066657fdb0f29125efd74d17d2ff9d22d1d6","reviewedAt":"2026-10-25"},
+  "xstocks-shares": {"hash":"2fc59ee7793cc2af5c444de0c2a0648fca94abf0a0cf46043eb5f4a5830add5c","reviewedAt":"2026-10-25"},
+  "xstocks-cash": {"hash":"d91a1ad0b457bc38fafc274207cc44684f8d1ed952d73d3c52aa5047307b27bb","reviewedAt":"2026-10-25"},
+  "ondo-structure": {"hash":"0b90a30c97ca77246a147196842ec624d46c529f2512af9e0dd4cc4f2e66d8c6","reviewedAt":"2026-10-25"},
+  "ondo-redemption": {"hash":"6ddfc3f20159ee72c93d733ef893987d6b8aeea96f8433b6a831851fc4300f70","reviewedAt":"2026-10-25"},
+  "backpack-structure": {"hash":"4f063359270b4820feecab0c06222c23c8180fc179647f559e63c5e9ea832027","reviewedAt":"2026-10-25"}
+}

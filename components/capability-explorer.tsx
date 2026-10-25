@@ -17,6 +17,9 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ScenarioExplorer } from "./scenario-explorer";
+import { ActionContext, ConceptComparison } from "./action-context";
+import { VersionContext, MorePossibilities } from "./version-context";
+import { contentFor, issuerId, redemptionLabel } from "@/lib/issuer-content";
 import { ANALYTICS_NAVIGATION, trackEvent } from "@/lib/analytics";
 import { StockStrip } from "./stock-strip";
 import { assetUrl } from "@/lib/asset-url";
@@ -90,7 +93,7 @@ function issuerPresentation(variant: Variant) {
   const label = variant.label ?? variant.issuer ?? "Version";
   const identity = `${label} ${variant.issuer ?? ""} ${variant.issuerUrl ?? ""}`.toLocaleLowerCase();
 
-  if (identity.includes("backpack")) return { label: "Backpack", logo: "/issuers/backpack.png", id: "backpack" };
+  if (issuerId(variant) === "backpack" || identity.includes("backpack")) return { label: "Backpack", logo: "/issuers/backpack.png", id: "backpack" };
   if (identity.includes("xstock")) return { label: "xStocks", logo: "/issuers/xstocks.svg", id: "xstocks" };
   if (identity.includes("ondo")) return { label: "Ondo", logo: "/issuers/ondo.svg", id: "ondo" };
   return { label, logo: null, id: "other" };
@@ -441,7 +444,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
       title: "Trade 24/7",
       summary: tradeSummary(),
       mapSummary: "Including when US markets are closed",
-      detail: <div className="capability-support"><p className="capability-explanation">Buy or sell this version through the Solana venues below.</p><VenueList markets={markets} /></div>,
+      detail: <div className="capability-support"><ActionContext kind="trade" symbol={selectedVariant?.symbol} /><VenueList markets={markets} /><ConceptComparison kind="trade" /></div>,
     }] : []),
     ...(earnCapabilities.length ? [{
       id: "earn" as const,
@@ -449,7 +452,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
       title: "Lend it",
       summary: earnSummary(earnCapabilities[0]),
       mapSummary: `${earnCapabilities[0].provider} · variable yield`,
-      detail: <div className="capability-support"><p className="capability-explanation">Deposit this version into a lending market to earn a variable yield.</p><ProtocolCapabilityList records={earnCapabilities} kind="earn" /></div>,
+      detail: <div className="capability-support"><ActionContext kind="earn" symbol={selectedVariant?.symbol} provider={earnCapabilities[0].provider} /><ProtocolCapabilityList records={earnCapabilities} kind="earn" /><ConceptComparison kind="earn" /></div>,
     }] : []),
     ...(borrowCapabilities.length ? [{
       id: "borrow" as const,
@@ -457,7 +460,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
       title: "Borrow against it",
       summary: borrowSummary(borrowCapabilities[0]),
       mapSummary: compactBorrowSummary(borrowCapabilities[0]),
-      detail: <div className="capability-support"><p className="capability-explanation">Use this version as collateral to borrow another asset.</p><ProtocolCapabilityList records={borrowCapabilities} kind="borrow" /></div>,
+      detail: <div className="capability-support"><ActionContext kind="borrow" symbol={selectedVariant?.symbol} provider={borrowCapabilities[0].provider} /><ProtocolCapabilityList records={borrowCapabilities} kind="borrow" /><ConceptComparison kind="borrow" /></div>,
     }] : []),
     ...(liquidityCapabilities.length ? [{
       id: "liquidity" as const,
@@ -465,7 +468,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
       title: "Earn trading fees",
       summary: liquiditySummary(liquidityCapabilities),
       mapSummary: compactLiquiditySummary(liquidityCapabilities),
-      detail: <div className="capability-support"><p className="capability-explanation">Add this version to a trading pool and earn a share of fees when people trade.</p><LiquidityCapabilityList records={liquidityCapabilities} /></div>,
+      detail: <div className="capability-support"><ActionContext kind="liquidity" symbol={selectedVariant?.symbol} provider={liquidityCapabilities[0].provider} /><LiquidityCapabilityList records={liquidityCapabilities} /><ConceptComparison kind="liquidity" /></div>,
     }] : []),
   ];
   const capabilityPresentations = baseCapabilityPresentations;
@@ -645,6 +648,8 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
                 <section className="version-context" aria-label="Version context"><VariantDetails key={selectedVariant.mint} variant={selectedVariant} marketResult={selectedMarketResult} marketScore={selectedRisk} onOpen={loadTechnicalDetails} /></section>
               </aside>
             </div>
+            <VersionContext key={detail.asset.assetId} detail={detail} selectedMint={selectedVariant.mint} onSelect={mint => {setSelectedMint(mint);setExpanded(null);}} cached={protocolCapabilitiesByMint} />
+            <MorePossibilities mint={selectedVariant.mint} response={selectedProtocolCapabilities} />
           </>
         ) : <div className="empty-state"><strong>No asset selected</strong><p>Choose an asset to inspect its Solana capabilities.</p><button className="primary-button" type="button" onClick={() => setSearchDialogOpen(true)}>Search stocks</button></div>}
         {error ? <div className="inline-error" role="alert"><span>{error}</span><button type="button" onClick={() => detail ? selectAsset(detail.asset, true) : assets[0] && selectAsset(assets[0], true)}>Try again</button></div> : null}
@@ -709,14 +714,14 @@ function VariantOptionContent({ variant }: { variant: Variant }) {
       : <span className="variant-issuer-fallback" aria-hidden="true">{issuer.label.slice(0, 1)}</span>}
     <span className="variant-option-copy">
       <strong title={variant.label ?? variant.issuer ?? "Version"}>{issuer.label}</strong>
-      <small>{structureCopy(variant.stockVariantTier).label}</small>
+      <small>{redemptionLabel(variant)}</small>
     </span>
   </>;
 }
 
 function StructureNote({ variant }: { variant: Variant }) {
   const structure = structureCopy(variant.stockVariantTier);
-  return <div className="structure-note"><span className={`structure-badge ${structure.tone}`}>{structure.label}</span><p>{structure.note}</p></div>;
+  return <div className="structure-note"><span className={`structure-badge ${structure.tone}`}>{redemptionLabel(variant)}</span><p>{contentFor(variant)?.eligibility ?? structure.note}</p></div>;
 }
 
 function VenueList({ markets }: { markets: VenueMarket[] }) {
@@ -878,7 +883,7 @@ function VariantDetails({ variant, marketResult, marketScore, onOpen }: { varian
   return <details className="variant-details" onToggle={event => { if (event.currentTarget.open) onOpen?.(); }}><summary>Technical details</summary><div>
     <p><span>Provider</span><strong>{issuerPresentation(variant).label}</strong></p>
     <p><span>Token</span><strong>{variant.symbol}</strong></p>
-    <p><span>Redemption</span><strong>{structureCopy(variant.stockVariantTier).label}</strong></p>
+    <p><span>Redemption</span><strong>{redemptionLabel(variant)}</strong></p>
     <StructureNote variant={variant} />
     <p><span>Mint</span><code>{variant.mint.slice(0, 6)}…{variant.mint.slice(-6)}</code><button type="button" onClick={copyMint}>{copied ? "Copied" : "Copy"}</button></p>
     <p><span>Liquidity</span><strong>{variant.market?.liquidity != null ? compactMoney(variant.market.liquidity) : "Not reported"}</strong></p>

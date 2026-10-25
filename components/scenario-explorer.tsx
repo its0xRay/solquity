@@ -8,8 +8,12 @@ import { isProtocolCacheFresh } from "@/lib/protocol-cache";
 import { mergeProtocolResponse, protocolForDisplay } from "@/lib/progressive-data";
 import { lendingIncome, loanRatio, positiveAmount, type ScenarioInputs, type ScenarioMode } from "@/lib/scenario";
 import { trackEvent } from "@/lib/analytics";
+import { ActionContext, ConceptComparison } from "./action-context";
+import { VersionContext } from "./version-context";
+import { ScenarioChange } from "./scenario-change";
+import { scenarioChange, formatScenarioMoney } from "@/lib/scenario-explanation";
 
-const dollars = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+const dollars = {format:formatScenarioMoney};
 const wholeDollars = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const pct = (ratio: number) => `${(ratio * 100).toLocaleString("en-US", { maximumFractionDigits: ratio > 0 && ratio < .0001 ? 4 : 2 })}%`;
 function metric(record: CapabilityRecord, key: string) {
@@ -39,7 +43,7 @@ type Props = {
   issuerLabel: (variant: Variant) => string;
 };
 
-export function ScenarioExplorer({ detail, selectedMint, inputs, onChange, onBack, onSelectMint, cached, issuerLabel }: Props) {
+export function ScenarioExplorer({ detail, selectedMint, inputs, onChange:onInputsChange, onBack, onSelectMint, cached, issuerLabel }: Props) {
   const [responses, setResponses] = useState<Record<string, ProtocolCapabilityResponse>>(() => Object.fromEntries(Object.entries(cached).map(([mint, value]) => [mint, value.response])));
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [settled, setSettled] = useState<Record<string, boolean>>({});
@@ -47,6 +51,7 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange, onBac
   const [retry, setRetry] = useState(0);
   const [selectedRecord, setSelectedRecord] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const [previous,setPrevious] = useState<{inputs:ScenarioInputs;rate:number | null;recordId?:string} | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -98,6 +103,12 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange, onBac
   const period = inputs.days === 365 ? "a year" : `${inputs.days} days`;
   const loading = detail.variants.some(variant => pending[variant.mint] || !settled[variant.mint]);
   const changeMode = (next: ScenarioMode) => { setSelectedRecord(null); onChange({ ...inputs, mode: next }); };
+  function onChange(next:ScenarioInputs) {
+    setPrevious({inputs,rate:currentRate,recordId:current?.record.id});
+    onInputsChange(next);
+  }
+  const change = previous && previous.recordId === current?.record.id && previous.rate === currentRate && (mode === "borrow" || canCalculate)
+    ? scenarioChange(previous.inputs,inputs,currentRate) : null;
 
   async function copyScenario() {
     try {
@@ -117,6 +128,7 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange, onBac
       <button type="button" disabled>Trade · soon</button><button type="button" disabled>Pools · soon</button>
     </div>
     <h1 id="scenario-heading" className="scenario-heading">{mode === "lend" ? <>What could <em>{amount ? wholeDollars.format(amount) : "your holding"}</em> of {detail.asset.name} earn over <em>{period}</em>?</> : <>How much could you borrow against your {detail.asset.name} — and what if it falls?</>}</h1>
+    <ActionContext kind={mode === "lend" ? "earn" : "borrow"} symbol={current?.variant.symbol ?? detail.variants.find(variant => variant.mint === selectedMint)?.symbol} provider={current?.record.provider} />
     {mode === "lend" ? <div className="scenario-mobile-result"><p className="eyebrow">{amount ? wholeDollars.format(amount) : "Your amount"} · {period} · {current?.variant.symbol ?? detail.asset.symbol}</p><strong>{income != null ? `≈ ${dollars.format(income)}` : "—"}</strong><p>{currentFresh?.stale || (current && errors[current.variant.mint]) ? "The last rate is still visible. Refresh the market for a new estimate." : currentRate != null ? `At today’s ${pct(currentRate)} annual rate. Variable — lending income only, not price changes.` : "Choose an amount to explore the lending markets we find."}</p></div> : null}
     <div className={`scenario-inputs ${mode === "borrow" ? "borrow-inputs" : ""}`}>
       <fieldset><legend>{mode === "lend" ? "Amount" : "Stock value"}</legend><label className="amount-input"><span aria-hidden="true">$</span><input aria-label={mode === "lend" ? "Amount in dollars" : "Collateral value in dollars"} inputMode="decimal" type="text" autoComplete="off" value={inputs.amount} onChange={event => { if (/^\d*\.?\d{0,2}$/.test(event.target.value)) onChange({ ...inputs, amount: event.target.value }); }} aria-invalid={inputs.amount !== "" && amount === null} /></label>{mode === "lend" ? <div className="preset-row">{[100, 1000, 10000].map(value => <button key={value} type="button" aria-pressed={amount === value} onClick={() => onChange({ ...inputs, amount: String(value) })}>{wholeDollars.format(value)}</button>)}</div> : null}{inputs.amount !== "" && !amount ? <small className="input-error">Enter an amount up to $1 billion.</small> : null}</fieldset>
@@ -148,7 +160,7 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange, onBac
               <button type="button" className="comparison-select" aria-pressed={current?.record.id === record.id} onClick={() => { setSelectedRecord(record.id); onSelectMint(variant.mint); }}>
                 <span className="comparison-identity"><strong>{variant.symbol}<small>{issuerLabel(variant)}</small></strong><span>{record.provider} · {marketName(record)}</span></span>
                 <span className="comparison-rate"><small>{mode === "lend" ? "Current rate" : "Borrow up to"}</small><strong>{mode === "lend" ? rate != null ? `${pct(rate)} APY` : "Not reported" : max != null ? pct(max) : "Not reported"}</strong></span>
-                <span className="comparison-result"><small>{mode === "lend" ? "You could earn" : "Based on your stock value"}</small><strong>{mode === "lend" ? result != null ? `≈ ${dollars.format(result)}` : stale ? "Refresh to estimate" : "—" : amount && max != null && !stale ? wholeDollars.format(amount * max) : "—"}</strong></span>
+                <span className="comparison-result"><small>{mode === "lend" ? "You could earn" : "Based on your stock value"}</small><strong>{mode === "lend" ? result != null ? `≈ ${formatScenarioMoney(result)}` : stale ? "Refresh to estimate" : "—" : amount && max != null && !stale ? wholeDollars.format(amount * max) : "—"}</strong></span>
                 <span className={`comparison-freshness ${stale ? "is-stale" : ""}`}>{failed ? "Couldn’t refresh · " : ""}{freshness.text}</span>
               </button>
               {record.evidence.appUrl ? <a className="outline-button" href={record.evidence.appUrl} target="_blank" rel="noreferrer">Open {record.provider}<ArrowUpRight size={16} aria-hidden="true" /></a> : null}
@@ -160,18 +172,21 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange, onBac
         <p className="eyebrow">{mode === "lend" ? "How this is calculated" : "What a price drop changes"}</p>
         {mode === "lend" ? <>
           <p className="explanation-lead">{income != null && amount && currentRate != null ? <>At a <span className="mono">{pct(currentRate)}</span> annual rate, <span className="mono">{wholeDollars.format(amount)}</span> would earn about <em>{dollars.format(income)}</em> over {period}.</> : currentFresh?.stale || (current && errors[current.variant.mint]) ? "The last rate is still visible. Refresh the market before calculating a new estimate." : !current ? loading ? "Checking lending markets for each version…" : "No current lending rate is available for this comparison. Check the market status beside each version." : "Enter an amount to see what the current lending rate would mean for you."}</p>
-          {income != null && currentRate != null && amount ? <div className="formula">{wholeDollars.format(amount)} × ((1 + {pct(currentRate)}) ^ ({inputs.days} / 365) − 1)<br />≈ {dollars.format(income)}</div> : null}
-          {current ? <ul><li>The rate can change. This estimate holds today’s APY constant over your chosen period.</li><li>This is lending income only. Changes in {detail.asset.name}’s price and transaction costs are separate.</li><li>Each market is shown on its own; rates are never averaged together.</li></ul> : null}
+          <ScenarioChange change={change} />
+          {current ? <details className="calculation-details"><summary>How this is calculated</summary>{income != null && currentRate != null && amount ? <div className="formula">{wholeDollars.format(amount)} × ((1 + {pct(currentRate)}) ^ ({inputs.days} / 365) − 1)<br />≈ {formatScenarioMoney(income)}</div> : null}<ul><li>The rate can change. This estimate holds today’s APY constant over your chosen period.</li><li>This is lending income only. Changes in {detail.asset.name}’s price and transaction costs are separate.</li><li>Each market is shown on its own; rates are never averaged together.</li></ul></details> : null}
         </> : <>
           <p className="explanation-lead">{amount && loan && startRatio != null && afterRatio != null ? <>Your <span className="mono">{wholeDollars.format(loan)}</span> loan is <em>{pct(startRatio)}</em> of your stock value today. After a {inputs.decline}% fall, it becomes <em>{pct(afterRatio)}</em>.</> : "Enter your stock value and a loan amount to see how a price drop changes their relationship."}</p>
+          <ScenarioChange change={change} />
           {amount && loan && afterRatio != null ? <><div className="ratio-track" role="img" aria-label={`Loan would be ${pct(afterRatio)} of collateral after the price drop`}><span style={{ width: `${Math.min(afterRatio * 100, 100)}%` }} /></div><div className="ratio-labels"><span>0%</span><span>After drop: {pct(afterRatio)}</span><span>100%</span></div><p>Stock value after the drop: <span className="mono">{wholeDollars.format(amount * (1 - inputs.decline / 100))}</span></p></> : null}
           {currentMax != null && canCalculate && amount ? <div className="borrow-limit"><span>Reported borrowing limit</span><strong>{wholeDollars.format(amount * currentMax)}</strong><small>{pct(currentMax)} of your stock value · {current?.record.provider}</small>{loan && loan > amount * currentMax ? <p className="input-error">Your entered loan is above this reported limit.</p> : null}</div> : null}
           <p className="muted">The current data does not include a liquidation threshold or borrow-asset terms for this comparison. Check the market for those details.</p>
         </>}
+        <ConceptComparison kind={mode === "lend" ? "earn" : "borrow"} />
         {current ? <details className="scenario-sources"><summary>View sources and parameters <ArrowUpRight size={15} /></summary><dl><div><dt>Version</dt><dd>{current.variant.symbol}</dd></div><div><dt>Protocol</dt><dd>{current.record.provider}</dd></div><div><dt>Market</dt><dd>{marketName(current.record)}</dd></div><div><dt>Updated</dt><dd>{currentFresh?.text}</dd></div></dl>{current.record.evidence.sourceUrl ? <a href={current.record.evidence.sourceUrl} target="_blank" rel="noreferrer">View source data <ArrowUpRight size={15} /></a> : null}</details> : null}
         {currentFresh?.stale || (current && errors[current.variant.mint]) ? <button className="outline-button" type="button" onClick={() => setRetry(value => value + 1)}><RefreshCw size={15} /> Refresh markets</button> : null}
       </aside>
     </div>
     <div className="scenario-share"><p>Share your stock, amount and period. Rates refresh when the link is opened.</p><button className="primary-button" type="button" onClick={copyScenario}>{copyState === "copied" ? <Check size={17} /> : <Link2 size={17} />}{copyState === "copied" ? "Copied" : "Copy link"}</button><span role="status">{copyState === "error" ? "Couldn’t copy. You can copy the address from your browser." : ""}</span></div>
+    <VersionContext detail={detail} selectedMint={selectedMint} onSelect={onSelectMint} cached={{...cached,...Object.fromEntries(Object.entries(responses).map(([mint,response]) => [mint,{response,cachedAt:response.fetchedAt}]))}} />
   </section>;
 }
