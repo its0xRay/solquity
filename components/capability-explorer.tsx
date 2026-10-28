@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import { ScenarioExplorer } from "./scenario-explorer";
 import { ActionContext, ConceptComparison } from "./action-context";
 import { VersionContext, MorePossibilities } from "./version-context";
-import { contentFor, issuerId, redemptionLabel } from "@/lib/issuer-content";
+import { contentFor, issuerId, providerName, redemptionLabel } from "@/lib/issuer-content";
 import { ANALYTICS_NAVIGATION, trackEvent } from "@/lib/analytics";
 import { StockStrip } from "./stock-strip";
 import { assetUrl } from "@/lib/asset-url";
@@ -90,12 +90,12 @@ function structureCopy(tier?: Variant["stockVariantTier"]) {
 }
 
 function issuerPresentation(variant: Variant) {
-  const label = variant.label ?? variant.issuer ?? "Version";
+  const label = providerName(variant);
   const identity = `${label} ${variant.issuer ?? ""} ${variant.issuerUrl ?? ""}`.toLocaleLowerCase();
 
   if (issuerId(variant) === "backpack" || identity.includes("backpack")) return { label: "Backpack", logo: "/issuers/backpack.png", id: "backpack" };
-  if (identity.includes("xstock")) return { label: "xStocks", logo: "/issuers/xstocks.svg", id: "xstocks" };
-  if (identity.includes("ondo")) return { label: "Ondo", logo: "/issuers/ondo.svg", id: "ondo" };
+  if (issuerId(variant) === "xstocks") return { label: "xStocks", logo: "/issuers/xstocks.svg", id: "xstocks" };
+  if (issuerId(variant) === "ondo") return { label: "Ondo", logo: "/issuers/ondo.svg", id: "ondo" };
   return { label, logo: null, id: "other" };
 }
 
@@ -592,6 +592,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
                 <div><h1>{detail.asset.name}</h1><p>{detail.asset.symbol} · {detail.asset.category === "etf" ? "ETF" : "Stock"} · {detail.variants.length} {detail.variants.length === 1 ? "version" : "versions"} on Solana</p></div>
               </div>
               <div className="asset-price-context">
+                <small className="token-price-caption" title="Market price for the selected token, not a separate underlying-share quote.">Token price · {selectedVariant.symbol}{selectedVariant.market?.source ? ` · ${selectedVariant.market.source === "birdeye" ? "Birdeye" : selectedVariant.market.source}` : " · Tokens.xyz"} · {relativeTime(selectedVariant.market?.asOf ?? selectedVariant.market?.lastFetchedAt) ?? "Time not reported"}</small>
                 <div className="price-block"><span className="price">{selectedVariant.market?.price != null ? money.format(selectedVariant.market.price) : "Price unavailable"}</span>
                 {selectedVariant.market?.priceChange24hPercent != null ? <span className={selectedVariant.market.priceChange24hPercent >= 0 ? "change-positive" : "change-negative"}>{percentage(selectedVariant.market.priceChange24hPercent)}</span> : null}</div>
                 <div className="asset-market-status"><MarketStatusCopy hasReferenceMarket={hasReferenceMarket} session={session} /></div>

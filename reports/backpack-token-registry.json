@@ -1,0 +1,534 @@
+{
+  "source": "https://ui.backpack.exchange/tokenized-stocks/assets",
+  "reviewedAt": "2026-10-28",
+  "tokens": [
+    {
+      "ticker": "SPCX",
+      "name": "SpaceX",
+      "mint": "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb",
+      "kind": "stock"
+    },
+    {
+      "ticker": "HOOD",
+      "name": "Robinhood Markets, Inc.",
+      "mint": "HooDYv5RewLRiMLnEVq3VJqdqxhuE6c5eYvqejMC3e9A",
+      "kind": "stock"
+    },
+    {
+      "ticker": "MU",
+      "name": "Micron Technology, Inc.",
+      "mint": "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1",
+      "kind": "stock"
+    },
+    {
+      "ticker": "INTC",
+      "name": "Intel Corporation",
+      "mint": "iNTCy1qTsUEZQe3DSocLz1ZXXai34Gdw8THQh5rxFaF",
+      "kind": "stock"
+    },
+    {
+      "ticker": "SKHY",
+      "name": "SK hynix Inc.",
+      "mint": "SKHYhSjuRWHgikq8eRKbtBbpABgJSkd7ytQV14i9EQ3",
+      "kind": "stock"
+    },
+    {
+      "ticker": "URA",
+      "name": "Global X Uranium ETF",
+      "mint": "URARfsinxCRw4JpvQhuT4CxavdZXZEMjv9ZwWmWpwag",
+      "kind": "fund"
+    },
+    {
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "mint": "AAPLEDt8RpzPgXyhvFzkMBofvFSQw9gpeMCoUdPdLnB8",
+      "kind": "stock"
+    },
+    {
+      "ticker": "ABNB",
+      "name": "Airbnb, Inc.",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "kind": "stock"
+    },
+    {
+      "ticker": "AMC",
+      "name": "AMC Entertainment Holdings, Inc.",
+      "mint": "AMC1qwR9KhiyrQBRPrxnfo4JfMeMZqEBvt5tgTytNNoc",
+      "kind": "stock"
+    },
+    {
+      "ticker": "AMD",
+      "name": "Advanced Micro Devices, Inc.",
+      "mint": "AMD8XwJXgQ9WV45Wyj9yFLejxzf2J6VM1PJY8bJEjeES",
+      "kind": "stock"
+    },
+    {
+      "ticker": "AMZN",
+      "name": "Amazon",
+      "mint": "AMZNw7cwU9L9c7ewZXxTws2PwQYxBGm2Rxg3FLDBJz9B",
+      "kind": "stock"
+    },
+    {
+      "ticker": "ARM",
+      "name": "Arm Holdings plc",
+      "mint": "ARMbSB1MBRQrY6PNMao1HdQ431VafC6JRJCsGZ2Yv3iJ",
+      "kind": "stock"
+    },
+    {
+      "ticker": "AVGO",
+      "name": "Broadcom Inc.",
+      "mint": "AVGoo4BQGsEfAmu4HU2deZTaTmLoqB3q3EzKXqAANGYD",
+      "kind": "stock"
+    },
+    {
+      "ticker": "BA",
+      "name": "The Boeing Company",
+      "mint": "BArimz1PcKZr8PcPh3tcZ2dg4S7FJLk3cw6R5F8GsHKg",
+      "kind": "stock"
+    },
+    {
+      "ticker": "BABA",
+      "name": "Alibaba Group Holding Limited",
+      "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+      "kind": "stock"
+    },
+    {
+      "ticker": "BB",
+      "name": "BlackBerry Limited",
+      "mint": "BBosJLw8ZzoATiEyywiifx7AgmrD2Cm3XjFWbhbRhChy",
+      "kind": "stock"
+    },
+    {
+      "ticker": "BE",
+      "name": "Bloom Energy Corporation",
+      "mint": "BEBVfXZ8uCxRBuunEbW9wcq9r7W9ySNo14oJBJkDgpZx",
+      "kind": "stock"
+    },
+    {
+      "ticker": "BLK",
+      "name": "BlackRock, Inc.",
+      "mint": "BLKKYfF41c6xRPrtX1rdYbxLE1xxEdZUnxQsB5hcZ8Nf",
+      "kind": "stock"
+    },
+    {
+      "ticker": "BOT",
+      "name": "RoboStrategy, Inc.",
+      "mint": "BoTx8y9ynfdxf5ZjWtCoBVkff52qKA82ysaLU8ZM6d8T",
+      "kind": "fund"
+    },
+    {
+      "ticker": "BROS",
+      "name": "Dutch Bros Inc.",
+      "mint": "BRVaZKg6J9iF2BEsdpsxJ9NyvN9PPxPZuoQUX2v8qqkk",
+      "kind": "stock"
+    },
+    {
+      "ticker": "BULL",
+      "name": "Webull Corporation",
+      "mint": "BULL151gUXcFV5wXEUqu9Am2L7Qt4bTJRLRuAUjkcspC",
+      "kind": "stock"
+    },
+    {
+      "ticker": "CAKE",
+      "name": "Cheesecake Factory Inc",
+      "mint": "CAKEcebDN4vqwAHBgj4ApzBvYCXsLWdsqCfFHNfW6Rui",
+      "kind": "stock"
+    },
+    {
+      "ticker": "CBRS",
+      "name": "Cerebras Systems Inc.",
+      "mint": "CBRSFBbQPpp77NpMcwbTN6fhBHmZM94oFLJvruytw4Fi",
+      "kind": "stock"
+    },
+    {
+      "ticker": "CHWY",
+      "name": "Chewy, Inc.",
+      "mint": "CHWYHz2zfKajomqPV9it26n7vu7AgZZfqGHXCWtGWuJg",
+      "kind": "stock"
+    },
+    {
+      "ticker": "CMG",
+      "name": "Chipotle Mexican Grill, Inc.",
+      "mint": "CMGi497VQA9RiHVWpQi5B847vN8RLaEwcMhB5kEUhkAQ",
+      "kind": "stock"
+    },
+    {
+      "ticker": "COPX",
+      "name": "Global X Copper Miners ETF",
+      "mint": "CzLTZppPdZtTjyq3WGpHLstoc3GLhu7zH5Zg6xUa6Gv5",
+      "kind": "fund"
+    },
+    {
+      "ticker": "COST",
+      "name": "Costco Wholesale Corporation",
+      "mint": "CZEB3WNZuF2Yz1z2H81RcCk8T7fsw82KB33zqamASVsg",
+      "kind": "stock"
+    },
+    {
+      "ticker": "CRWV",
+      "name": "CoreWeave, Inc.",
+      "mint": "CRWVJeR2yEZuDUKYfGuKCHvLz8ywn4LGvovHfy5WiFmi",
+      "kind": "stock"
+    },
+    {
+      "ticker": "CYPH",
+      "name": "Cypherpunk Technologies Inc.",
+      "mint": "CYPHuMmCL1GxJWa2tsPhLKykC7GrHJTCHwbXD4g5uawK",
+      "kind": "stock"
+    },
+    {
+      "ticker": "DELL",
+      "name": "Dell Technologies Inc.",
+      "mint": "DELL2aRKQz7DMq5DrKLtkn47ZCnbxXPZXrSGbkmd13wy",
+      "kind": "stock"
+    },
+    {
+      "ticker": "DJT",
+      "name": "Trump Media & Technology Group Corp.",
+      "mint": "DJTu7vi8norVzdVAffgvb39VP7wjKeTsgaMBJrzfxvoF",
+      "kind": "stock"
+    },
+    {
+      "ticker": "DKNG",
+      "name": "DraftKings Inc.",
+      "mint": "DKNGQFNGQmoBdXSRGKJ8tTu7uPDasw5JDcfMmWniNfow",
+      "kind": "stock"
+    },
+    {
+      "ticker": "DNUT",
+      "name": "Krispy Kreme, Inc.",
+      "mint": "DNUTsCvKbKwu2RM72cUuW3TD9YpzArzACcqYQssjPLSk",
+      "kind": "stock"
+    },
+    {
+      "ticker": "DRAM",
+      "name": "Roundhill Memory ETF",
+      "mint": "DRAMjSWR7HRfJKjRkvQWYL2bcaejaVhuxEcjf4pAY4Cw",
+      "kind": "fund"
+    },
+    {
+      "ticker": "EWY",
+      "name": "iShares MSCI South Korea ETF",
+      "mint": "EWY4owSJYMpwN33qGDu5gGxpkQkpMJu8ZUsQJaNZG5dv",
+      "kind": "fund"
+    },
+    {
+      "ticker": "EWZ",
+      "name": "iShares MSCI Brazil ETF",
+      "mint": "EWZzCki1igp2y73UyUM4RCG4QUVMQAtnrQUVNaDHzDxJ",
+      "kind": "fund"
+    },
+    {
+      "ticker": "FLWS",
+      "name": "1-800-FLOWERS.COM, Inc.",
+      "mint": "FLWSojG1gB5VStYR3Sb4nQFRt43UBYkqih1j2CpVLqgd",
+      "kind": "stock"
+    },
+    {
+      "ticker": "FLY",
+      "name": "Firefly Aerospace Inc.",
+      "mint": "FLYRq3en8r2Z69gN3KyAnDrvnitEJNkwPYY7favinHeD",
+      "kind": "stock"
+    },
+    {
+      "ticker": "FWDI",
+      "name": "Forward Industries, Inc.",
+      "mint": "FWDtiB5fXHdVAewPqvHPL2dh4aBC1C6GacQbePoQXKjz",
+      "kind": "stock"
+    },
+    {
+      "ticker": "GOOGL",
+      "name": "Alphabet Inc.",
+      "mint": "GooGLMvZtJZXHdNZy95RUrAMCCKxV6ghK3qE5ddBgVm5",
+      "kind": "stock"
+    },
+    {
+      "ticker": "GPRO",
+      "name": "GoPro, Inc.",
+      "mint": "GPRR2u6NS5yBQHWGauoJ9HXgjrTH8dDsrBfTV5zAYvDH",
+      "kind": "stock"
+    },
+    {
+      "ticker": "GRND",
+      "name": "Grindr Inc.",
+      "mint": "GRNDYDpqwpCm6jVxpbh4xT5AM4r3p391qYsKTHqgaET2",
+      "kind": "stock"
+    },
+    {
+      "ticker": "HIMS",
+      "name": "Hims & Hers Health, Inc.",
+      "mint": "HiMSSzzwkZkrXJ4PGVJRdtfLaANeAztjjcgk5Dxe7Lwx",
+      "kind": "stock"
+    },
+    {
+      "ticker": "HTZ",
+      "name": "Hertz Global Holdings, Inc.",
+      "mint": "HTZsLG4zqaNvWMwXSLHH3GG5KyJpKwpBRsKVdMG6hvzP",
+      "kind": "stock"
+    },
+    {
+      "ticker": "IBM",
+      "name": "International Business Machines Corporation",
+      "mint": "BMKdM4yUxX12moFqVk195k7coMbaybd4RUKCUdm7D1Sk",
+      "kind": "stock"
+    },
+    {
+      "ticker": "IONQ",
+      "name": "IonQ, Inc.",
+      "mint": "NQ5hSuXQZrbnrwcDVk2qN73njjd3E3v3badYHnj5thF",
+      "kind": "stock"
+    },
+    {
+      "ticker": "IREN",
+      "name": "IREN Limited",
+      "mint": "RENzhrJQgmAnfcLhU1U5XwAMc6TC15UA6jCbPBaasnj",
+      "kind": "stock"
+    },
+    {
+      "ticker": "JNJ",
+      "name": "Johnson & Johnson",
+      "mint": "JNJg1znKdF712Phe7L7z52AATAvEjEytBdN2w8Lnh1Y",
+      "kind": "stock"
+    },
+    {
+      "ticker": "LLY",
+      "name": "Eli Lilly and Company",
+      "mint": "LLYuwZ33keFihgwoxXsBawy31AiRFLFSva32TYq5TvD",
+      "kind": "stock"
+    },
+    {
+      "ticker": "LMT",
+      "name": "Lockheed Martin Corporation",
+      "mint": "LMT3i1BHgixFqPUgcyteJhnEz2dpy9i3cYy4pi9BoeV",
+      "kind": "stock"
+    },
+    {
+      "ticker": "LULU",
+      "name": "Lululemon Athletica Inc.",
+      "mint": "LULUmT9VMttkfAJE236LXJcYJ2tTP7nunrSWR5G1BdS",
+      "kind": "stock"
+    },
+    {
+      "ticker": "LUV",
+      "name": "Southwest Airlines Co.",
+      "mint": "LUV9GB51PNZNRyzzyYK3rtqFfvDvWtRiXZ34wVq2HrX",
+      "kind": "stock"
+    },
+    {
+      "ticker": "META",
+      "name": "Meta Platforms, Inc.",
+      "mint": "METAaH6MMZZgy2CTEJq3QdNi7AFVTV3NxHFBfFgLEDd",
+      "kind": "stock"
+    },
+    {
+      "ticker": "MGM",
+      "name": "MGM Resorts International",
+      "mint": "MGMuubtUEirmkhfEQdmGUh4pr7HuUdMWcZXFtpPbVJD",
+      "kind": "stock"
+    },
+    {
+      "ticker": "MRNA",
+      "name": "Moderna, Inc.",
+      "mint": "MRNAzXzhNcaEXJPibHEn8cd4vyekCDiivTyEwswLUCT",
+      "kind": "stock"
+    },
+    {
+      "ticker": "MRVL",
+      "name": "Marvell Technology, Inc.",
+      "mint": "MRVLSjkR2ceUBukujaD3xCyHP1H3B2SzpsNTZF546jo",
+      "kind": "stock"
+    },
+    {
+      "ticker": "MSFT",
+      "name": "Microsoft Corporation",
+      "mint": "MSFThX899B1DddH5jkyMpdArWXzP85VXLYDrbGGcRJM",
+      "kind": "stock"
+    },
+    {
+      "ticker": "MSTR",
+      "name": "Strategy Inc",
+      "mint": "MSTRdWXMeZxdE8osAQy3fA4rvTY5rgummDSMEx6U7Nz",
+      "kind": "stock"
+    },
+    {
+      "ticker": "NBIS",
+      "name": "Nebius Group N.V.",
+      "mint": "NBiSF3UaVUFtRzHwAfxyHsBCAZWGEKnMpewAE4oh7BG",
+      "kind": "stock"
+    },
+    {
+      "ticker": "NFLX",
+      "name": "Netflix, Inc.",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "kind": "stock"
+    },
+    {
+      "ticker": "NKE",
+      "name": "NIKE, Inc.",
+      "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+      "kind": "stock"
+    },
+    {
+      "ticker": "NOK",
+      "name": "Nokia Oyj",
+      "mint": "N7Q5fYX7YRnDQksfdBKnoUb3awm92n7QNAD35X3Rq1X",
+      "kind": "stock"
+    },
+    {
+      "ticker": "NVDA",
+      "name": "NVIDIA Corporation",
+      "mint": "NVDAVuiB7hwd3m5Wa1JuHNovPaPG6BH1QNztbKFxNjv",
+      "kind": "stock"
+    },
+    {
+      "ticker": "PFE",
+      "name": "Pfizer Inc.",
+      "mint": "PFER6ENqP8r8NF3CqVt4mFowxsin3V5MLidBNQFCC3x",
+      "kind": "stock"
+    },
+    {
+      "ticker": "PTN",
+      "name": "Palatin Technologies, Inc.",
+      "mint": "PTNzAfFAB4LvoUQEUUGrFMyUoRLExMYjH6CcfyQfsVP",
+      "kind": "stock"
+    },
+    {
+      "ticker": "PUSA",
+      "name": "Powerus Corporation",
+      "mint": "PUSAG1stksTcAoK9MjinEHUwAYRJsbovywYCk37m6hy",
+      "kind": "stock"
+    },
+    {
+      "ticker": "QUBT",
+      "name": "Quantum Computing Inc.",
+      "mint": "QUBTAD8C9bMU9LvmMNgKPhrmBGbHvxpu6vfWQtThxxw",
+      "kind": "stock"
+    },
+    {
+      "ticker": "RACE",
+      "name": "Ferrari N.V.",
+      "mint": "RACEyWiM2ztEZcJx2AHXU2eWjhxU57x3vXn92b39dLD",
+      "kind": "stock"
+    },
+    {
+      "ticker": "RBLX",
+      "name": "Roblox Corporation",
+      "mint": "RBLXDGRD64AtRamHMFVcjqne3Ar7NLWtFtYNtsrf1cE",
+      "kind": "stock"
+    },
+    {
+      "ticker": "RDDT",
+      "name": "Reddit, Inc.",
+      "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+      "kind": "stock"
+    },
+    {
+      "ticker": "RIOT",
+      "name": "Riot Platforms, Inc.",
+      "mint": "RUKx7nBgm94pwRPbVm99xYVdcTDTUyGs8Cw3VSYQXHf",
+      "kind": "stock"
+    },
+    {
+      "ticker": "RIVN",
+      "name": "Rivian Automotive, Inc.",
+      "mint": "RcZmt84VMJv9bDhKqmw1uWDahYrUT468VwAChTnfD8p",
+      "kind": "stock"
+    },
+    {
+      "ticker": "RKLB",
+      "name": "Rocket Lab Corporation",
+      "mint": "RKLBnAXGqv31iZomqsuAWkQm1aqC7JwwvbCfzGdqAhz",
+      "kind": "stock"
+    },
+    {
+      "ticker": "RUM",
+      "name": "RUM Group Inc.",
+      "mint": "RUMsPfFZFnN1ZmGANwP7FNMJMjKH4m9RiMePrtVtLe7",
+      "kind": "stock"
+    },
+    {
+      "ticker": "SCHH",
+      "name": "Schwab U.S. REIT ETF",
+      "mint": "SCHHJ3jRdSjeFEVAaLrnYdx3Brphn92Ys7z1qkiCtPX",
+      "kind": "fund"
+    },
+    {
+      "ticker": "SHOP",
+      "name": "Shopify Inc.",
+      "mint": "SH55hfaipFAbwT42nQYhRoM5o5t61QpkmJ6p62vXB3m",
+      "kind": "stock"
+    },
+    {
+      "ticker": "SNAP",
+      "name": "Snap Inc.",
+      "mint": "SNAPcESrvnH8yUdgeMF6xm1hym9b6hW6s8YeqeHdZFz",
+      "kind": "stock"
+    },
+    {
+      "ticker": "SNDK",
+      "name": "Sandisk Corporation",
+      "mint": "SNDKbwMUQvZhnLnxLduradgLHG5KrPuKwpnrkkGRhfH",
+      "kind": "stock"
+    },
+    {
+      "ticker": "SPHR",
+      "name": "Sphere Entertainment Co.",
+      "mint": "SPHRp8cZaSQBTp1KMNP4V1X821SXhXWt4Q2yLdyHzju",
+      "kind": "stock"
+    },
+    {
+      "ticker": "SQQQ",
+      "name": "ProShares UltraPro Short QQQ",
+      "mint": "SQQQAa3gUxgnqcEsdjPA4RQNQBgB97TnG2hJhk2WaGE",
+      "kind": "fund"
+    },
+    {
+      "ticker": "TSLA",
+      "name": "Tesla, Inc.",
+      "mint": "TSLAqBbv4CNCnzWFeB7LmydAyEiNMJtve7DYKLpdK4S",
+      "kind": "stock"
+    },
+    {
+      "ticker": "TSM",
+      "name": "Taiwan Semiconductor Manufacturing Company Limited",
+      "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+      "kind": "stock"
+    },
+    {
+      "ticker": "TTWO",
+      "name": "Take-Two Interactive Software, Inc.",
+      "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+      "kind": "stock"
+    },
+    {
+      "ticker": "UPS",
+      "name": "United Parcel Service, Inc.",
+      "mint": "UPSqUeMHcWbkdg784XuBUEF9DtySSnW9ur5LAVdcuB9",
+      "kind": "stock"
+    },
+    {
+      "ticker": "USO",
+      "name": "United States Oil Fund, LP",
+      "mint": "USNv3NkKA27Dh4nsHJDPhW4VoEcTQmjoZyJt2dqdwFu",
+      "kind": "fund"
+    },
+    {
+      "ticker": "UVXY",
+      "name": "ProShares Ultra VIX Short-Term Futures ETF",
+      "mint": "UVXY4ojmAMTaPwUmrRmcuxWHjMHCbz3BxX2RBMzjYKx",
+      "kind": "fund"
+    },
+    {
+      "ticker": "WEN",
+      "name": "The Wendy's Company",
+      "mint": "WENAZ2WyPbmgvUcKfQ8hyMDfBQP9bZ65hsZ5KTFrRGZ",
+      "kind": "stock"
+    },
+    {
+      "ticker": "WULF",
+      "name": "TeraWulf Inc.",
+      "mint": "WULFeyfrj1VJKD9HhRTcW8R4g5HefUA11HDEdBv2WxD",
+      "kind": "stock"
+    }
+  ]
+}

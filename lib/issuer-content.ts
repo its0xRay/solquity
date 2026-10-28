@@ -1,4 +1,5 @@
 import type { Variant } from "./types";
+import { tokenIdentity } from "./asset-identity";
 
 export type IssuerId = "xstocks" | "ondo" | "backpack";
 export type IssuerSource = { id: string; label: string; url: string };
@@ -62,8 +63,9 @@ export const issuerContent: Record<IssuerId, IssuerContent> = {
 };
 
 export function issuerId(variant: Variant): IssuerId | undefined {
-  // This API version omits the issuer for TSLA. Match the published mint, never the ticker or redemption tier.
-  if (variant.mint === "TSLAqBbv4CNCnzWFeB7LmydAyEiNMJtve7DYKLpdK4S") return "backpack";
+  // Published exact mint registry: never infer a provider from a ticker or tier.
+  const registered = tokenIdentity(variant.mint)?.issuer;
+  if (registered) return registered === "xStocks" ? "xstocks" : registered.toLowerCase() as IssuerId;
   const identity = `${variant.issuer ?? ""} ${variant.label ?? ""} ${variant.issuerUrl ?? ""}`.toLowerCase();
   if (identity.includes("backpack")) return "backpack";
   if (identity.includes("xstock")) return "xstocks";
@@ -74,8 +76,21 @@ export function issuerId(variant: Variant): IssuerId | undefined {
 export function contentFor(variant: Variant) {
   const id = issuerId(variant);
   // Do not apply stock terms to unrelated product families from the same issuer.
-  if (!id || !["stock","etf","equity","tokenized_stock","tokenized_equity"].includes(variant.kind.toLowerCase())) return undefined;
+  if (!id || !["stock","etf","equity","tokenized_stock","tokenized_equity","leveraged"].includes(variant.kind.toLowerCase())) return undefined;
   return issuerContent[id];
+}
+
+export function providerName(variant:Variant) {
+  const id = issuerId(variant);
+  if (id) return issuerContent[id].name;
+  const name = variant.issuer?.trim() || variant.label?.trim();
+  return name && ![variant.symbol?.toLowerCase(),"version"].includes(name.toLowerCase()) ? name : "Provider not verified";
+}
+
+export function identitySource(variant:Variant) {
+  const registered = tokenIdentity(variant.mint);
+  if (registered) return registered.source;
+  return contentFor(variant)?.sources[0]?.url;
 }
 
 export function redemptionLabel(variant: Variant) {

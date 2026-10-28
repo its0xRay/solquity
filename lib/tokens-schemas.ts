@@ -4,6 +4,7 @@ const nullableNumber = z.number().nullable().optional();
 const nullableString = z.string().nullable().optional();
 
 export const marketSnapshotSchema = z.object({
+  source: z.string().optional(),
   price: nullableNumber,
   liquidity: nullableNumber,
   volume24hUSD: nullableNumber,

@@ -3,6 +3,7 @@ import { tokensFetch } from "./tokens-client";
 import { aggregateDisplayCapabilities, tokensMarketCapabilities } from "./capabilities";
 import { sourceFailure, sourceStale, sourceSuccess } from "./source-result";
 import { isVenueEligible } from "./venue-status";
+import { assetMembers, canonicalAssetId, groupAssets, normalizeAsset, normalizeVariant, securityGroup } from "./asset-identity";
 import {
   curatedResponseSchema, descriptionResponseSchema, detailResponseSchema, detailWithMarketsResponseSchema,
   priceChartResponseSchema, riskResponseSchema, searchResponseSchema, variantsResponseSchema,
@@ -66,7 +67,7 @@ export async function getUniverse(): Promise<Asset[]> {
   const [stocks, etfs] = await Promise.all([getCuratedList("stocks"), getCuratedList("etfs")]);
   const unique = new Map<string, Asset>();
   for (const asset of [...stocks, ...etfs]) unique.set(asset.assetId, asset);
-  return [...unique.values()].sort((a, b) =>
+  return groupAssets([...unique.values()]).sort((a, b) =>
     (b.stats?.liquidity ?? -1) - (a.stats?.liquidity ?? -1) || (a.name ?? a.assetId).localeCompare(b.name ?? b.assetId));
 }
 
@@ -81,12 +82,12 @@ export async function searchUniverse(query: string): Promise<Asset[]> {
     equities.results[index], etfs.results[index],
   ]).flat().filter(Boolean) as Asset[];
   for (const asset of interleaved) unique.set(asset.assetId, asset);
-  return [...unique.values()].slice(0, 8);
+  return groupAssets([...unique.values()]).slice(0, 8);
 }
 
 export async function getVariantMints(assetId: string): Promise<string[]> {
-  const data = await tokensFetch(`/assets/${encodeURIComponent(assetId)}/variants?variantsMode=all&sortBy=liquidity`, variantsResponseSchema, { revalidate: DAY });
-  return data.variants.map((variant) => variant.mint);
+  const data = await Promise.all(assetMembers(assetId).map(id => tokensFetch(`/assets/${encodeURIComponent(id)}/variants?variantsMode=all&sortBy=liquidity`, variantsResponseSchema, { revalidate: DAY })));
+  return [...new Set(data.flatMap(item => item.variants.map(variant => variant.mint)))];
 }
 
 async function getAllMarkets(assetId: string, mint: string): Promise<VenueMarket[]> {
@@ -113,22 +114,28 @@ async function getAllMarkets(assetId: string, mint: string): Promise<VenueMarket
 }
 
 export async function getVariantMarkets(assetId: string, mint: string): Promise<SourceResult<VenueMarket[]>> {
-  return withLastGood(cacheKey(assetId, mint), lastGoodMarkets, () => getAllMarkets(assetId, mint));
+  const sourceId = securityGroup(assetId) ? (await getAssetOverview(assetId)).variants.find(item => item.mint === mint)?.sourceAssetId ?? assetId : assetId;
+  return withLastGood(cacheKey(sourceId, mint), lastGoodMarkets, () => getAllMarkets(sourceId, mint));
 }
 
 export async function getAssetOverview(assetId: string): Promise<AssetDetail> {
+  const id = canonicalAssetId(assetId);
+  const entries = await Promise.all(assetMembers(assetId).map(async sourceId => {
   const [detail, variantData] = await Promise.all([
-    tokensFetch(`/assets/${encodeURIComponent(assetId)}?include=profile&variantsMode=all&primaryVariantStrategy=liquidity`, detailResponseSchema, { revalidate: DAY }),
-    tokensFetch(`/assets/${encodeURIComponent(assetId)}/variants?variantsMode=all&sortBy=liquidity`, variantsResponseSchema, { revalidate: METRICS }),
+    tokensFetch(`/assets/${encodeURIComponent(sourceId)}?include=profile&variantsMode=all&primaryVariantStrategy=liquidity`, detailResponseSchema, { revalidate: DAY }),
+    tokensFetch(`/assets/${encodeURIComponent(sourceId)}/variants?variantsMode=all&sortBy=liquidity`, variantsResponseSchema, { revalidate: METRICS }),
   ]);
-
-  const variants = variantData.variants as Variant[];
-  return { asset: detail.asset as Asset, variants, marketResultsByMint: {}, displayMarketsByMint: {}, displayCapabilitiesByMint: {}, riskResultsByMint: {}, fetchedAt: Date.now() };
+    return {asset:normalizeAsset(detail.asset as Asset),variants:variantData.variants.map(variant => normalizeVariant(variant as Variant,sourceId))};
+  }));
+  const asset = entries[assetMembers(assetId).indexOf(assetId)]?.asset ?? entries.find(entry => entry.asset.assetId === id)?.asset ?? entries[0].asset;
+  const variants = [...new Map(entries.flatMap(entry => entry.variants).map(variant => [variant.mint,variant])).values()];
+  return { asset:{...asset,variants}, variants, marketResultsByMint: {}, displayMarketsByMint: {}, displayCapabilitiesByMint: {}, riskResultsByMint: {}, fetchedAt: Date.now() };
 }
 
 export async function getVariantRisk(assetId: string, mint: string) {
+  const sourceId = securityGroup(assetId) ? (await getAssetOverview(assetId)).variants.find(item => item.mint === mint)?.sourceAssetId ?? assetId : assetId;
   return withLastGood(cacheKey(assetId, mint), lastGoodRisk, () => tokensFetch(
-    `/assets/${encodeURIComponent(assetId)}/risk-summary?mint=${encodeURIComponent(mint)}`, riskResponseSchema, { revalidate: METRICS },
+    `/assets/${encodeURIComponent(sourceId)}/risk-summary?mint=${encodeURIComponent(mint)}`, riskResponseSchema, { revalidate: METRICS },
   ) as Promise<RiskSummary>);
 }
 

@@ -3,6 +3,7 @@ import type { Asset, Variant } from "./types";
 function clientVariant(variant: Variant): Variant {
   return {
     variantId: variant.variantId,
+    sourceAssetId: variant.sourceAssetId,
     mint: variant.mint,
     kind: variant.kind,
     issuer: variant.issuer,

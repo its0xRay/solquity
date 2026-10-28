@@ -1,4 +1,5 @@
 export type MarketSnapshot = {
+  source?: string;
   price?: number | null;
   liquidity?: number | null;
   volume24hUSD?: number | null;
@@ -22,6 +23,7 @@ export type ExecutionQuality = {
 };
 
 export type Variant = {
+  sourceAssetId?: string;
   variantId: string;
   mint: string;
   kind: string;

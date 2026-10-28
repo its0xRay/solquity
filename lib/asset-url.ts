@@ -1,6 +1,7 @@
 import type { Variant } from "./types";
 import type { ScenarioInputs } from "./scenario";
 import { positiveAmount } from "./scenario";
+import { canonicalAssetId } from "./asset-identity";
 
 export type AssetQuery = { asset?: string; mint?: string; version?: string; mode?: string; amount?: string; days?: string; loan?: string; decline?: string };
 const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -22,9 +23,14 @@ export function versionSlug(variant: Variant, variants: Variant[]) {
 }
 export function resolveVersion(variants: Variant[], query: Pick<AssetQuery, "mint" | "version">) {
   if (query.mint) return variants.find(item => item.mint === query.mint);
-  return query.version ? variants.find(item => versionSlug(item, variants) === query.version) : undefined;
+  if (!query.version) return undefined;
+  const current = variants.find(item => versionSlug(item, variants) === query.version);
+  if (current) return current;
+  // Preserve older shared URLs when a previously unnamed provider becomes identified.
+  const legacy = variants.filter(item => slug(item.symbol ?? "") === query.version);
+  return legacy.length === 1 ? legacy[0] : undefined;
 }
-export function stockPath(assetId: string) { return `/stocks/${encodeURIComponent(assetId)}`; }
+export function stockPath(assetId: string) { return `/stocks/${encodeURIComponent(canonicalAssetId(assetId))}`; }
 export function assetUrl({assetId, variant, variants, defaultMint, scenario, home = false}: {
   assetId: string; variant: Variant; variants: Variant[]; defaultMint?: string; scenario: ScenarioInputs; home?: boolean;
 }) {

@@ -19,6 +19,14 @@ function render(records: CapabilityRecord[], overrides: Partial<ScenarioInputs> 
 }
 
 describe("scenario evidence boundaries", () => {
+  it("keeps missing borrowing terms next to the reported limit", () => {
+    const borrow:CapabilityRecord = {...record("active"),kind:"borrow",metrics:[{key:"maxLtv",label:"Max LTV",value:.55,unit:"ratio"}]};
+    const html = render([borrow],{mode:"borrow"});
+    expect(html).toContain("$550");
+    expect(html).toContain("borrow-terms-note");
+    expect(html).toContain("Liquidation and borrow-asset terms aren’t available here");
+    expect(html).not.toContain("safe until");
+  });
   it("renders an estimate from a current APY", () => {
     const html = render([record("active")]);
     expect(html).toContain("≈ $0.16");
@@ -42,6 +50,6 @@ describe("scenario evidence boundaries", () => {
     const html = render([], { mode: "borrow", amount: "1000", loan: "200", decline: 20 });
     expect(html).toContain("25%");
     expect(html).toContain("$800");
-    expect(html).toContain("does not include a liquidation threshold");
+    expect(html).toContain("Liquidation and borrow-asset terms aren’t available here");
   });
 });
