@@ -29,4 +29,15 @@ describe("compact contextual UI", () => {
     expect(html).not.toContain("checked today");
     expect(html).not.toContain("ownership-comparison-grid");
   });
+  it("keeps ownership research behind accessible drawer triggers", () => {
+    const variant = {variantId:"x",mint:"mint",kind:"stock",issuer:"xStocks",symbol:"TSLAx"};
+    const detail:AssetDetail = {asset:{assetId:"tesla",name:"Tesla",category:"stock"},variants:[variant,{...variant,variantId:"o",mint:"ondo",issuer:"Ondo",symbol:"TSLAon"}],marketResultsByMint:{},displayMarketsByMint:{},displayCapabilitiesByMint:{},riskResultsByMint:{},fetchedAt:Date.now()};
+    const html = renderToStaticMarkup(<VersionContext presentation="drawer" detail={detail} selectedMint="mint" onSelect={() => {}} cached={{}} />);
+    expect(html).toContain("What am I holding?");
+    expect(html).toContain("Compare versions");
+    expect(html).toContain("<dialog");
+    expect(html).not.toContain("<dialog open");
+    expect(html).not.toContain("ownership-summary");
+    expect(html).not.toContain("ownership-comparison-grid");
+  });
 });

@@ -6,7 +6,7 @@
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { preferredCapabilityMint, type CapabilityCoverageIndex, type VisibleCapabilityKind } from "@/lib/capability-coverage";
+import { type CapabilityCoverageIndex, type VisibleCapabilityKind } from "@/lib/capability-coverage";
 import type { Asset } from "@/lib/types";
 import { stockPath } from "@/lib/asset-url";
 
@@ -25,7 +25,7 @@ export function BrowseAssets({ assets, capabilityCoverage, initialQuery = "", in
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return assets.filter((asset) => {
-      const matchesType = type === "all" || asset.category === type;
+      const matchesType = type === "all" || asset.category === type || (type === "equity" && asset.category === "stock");
       const matchesQuery = !needle || [asset.name, asset.symbol, asset.primaryVariant?.issuer, asset.primaryVariant?.label,
         ...(asset.variants ?? []).flatMap((variant) => [variant.issuer, variant.label, variant.symbol])]
         .filter(Boolean).some((item) => String(item).toLowerCase().includes(needle));
@@ -60,18 +60,19 @@ export function BrowseAssets({ assets, capabilityCoverage, initialQuery = "", in
         {([['all','All'],['equity','Stocks'],['etf','ETFs']] as const).map(([value,label]) => <button type="button" key={value} aria-pressed={type === value} onClick={() => updateType(value)}>{label}</button>)}
         <span>{filtered.length} results</span>
       </div>
-      {filtered.length ? <div className="browse-grid">{filtered.map((asset) => {
-        const preferredMint = preferredCapabilityMint(asset, capabilityCoverage);
-        const capabilities = preferredMint ? capabilityCoverage.byMint[preferredMint] ?? [] : [];
+      {filtered.length ? <div className="browse-directory"><div className="directory-columns" aria-hidden="true"><span>Asset</span><span>Versions</span><span>Available uses</span></div><div className="browse-grid">{filtered.map((asset) => {
+        const capabilities = [...new Set([...(capabilityCoverage.byAsset[asset.assetId] ?? []),...(asset.variants ?? []).flatMap(variant => capabilityCoverage.byMint[variant.mint] ?? [])])];
+        const versions = asset.variants?.length || capabilityCoverage.mintsByAsset[asset.assetId]?.length;
         return <Link key={asset.assetId} href={stockPath(asset.assetId)}>
           {asset.imageUrl ? <img src={asset.imageUrl} alt="" width="44" height="44" loading="lazy" decoding="async" /> : <span className="logo-fallback">{(asset.symbol ?? "?").slice(0,2)}</span>}
           <span><strong>{asset.name}</strong><small>{asset.symbol} · {asset.category === "etf" ? "ETF" : "Stock"}</small></span>
+          <span className="directory-version-count"><span className="sr-only">Versions: </span>{versions ?? "—"}</span>
           <span className="browse-capabilities">{capabilities.length
             ? capabilities.map((kind) => <small key={kind}>{capabilityLabels[kind]}</small>)
             : <small>No verified actions yet</small>}</span>
           <ArrowRight size={16} aria-hidden="true" />
         </Link>
-      })}</div> : <div className="empty-state"><strong>No matching assets</strong><p>Try another company name, ticker, or asset type.</p></div>}
+      })}</div></div> : <div className="empty-state"><strong>No matching assets</strong><p>Try another company name, ticker, or asset type.</p></div>}
     </main>
   );
 }

@@ -41,9 +41,10 @@ type Props = {
   onSelectMint: (mint: string) => void;
   cached: Record<string, ProtocolCacheEntry>;
   issuerLabel: (variant: Variant) => string;
+  embedded?: boolean;
 };
 
-export function ScenarioExplorer({ detail, selectedMint, inputs, onChange:onInputsChange, onBack, onSelectMint, cached, issuerLabel }: Props) {
+export function ScenarioExplorer({ detail, selectedMint, inputs, onChange:onInputsChange, onBack, onSelectMint, cached, issuerLabel, embedded = false }: Props) {
   const [responses, setResponses] = useState<Record<string, ProtocolCapabilityResponse>>(() => Object.fromEntries(Object.entries(cached).map(([mint, value]) => [mint, value.response])));
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [settled, setSettled] = useState<Record<string, boolean>>({});
@@ -90,9 +91,8 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange:onInpu
   const kind = mode === "lend" ? "earn" : "borrow";
   const displayResponses = Object.fromEntries(Object.entries(responses).map(([mint,response]) => [mint,protocolForDisplay(response)]));
   const allRecords = detail.variants.flatMap(variant => (displayResponses[variant.mint]?.capabilities ?? []).filter(record => record.kind === kind).map(record => ({ variant, record })));
-  const current = allRecords.find(item => item.record.id === selectedRecord)
-    ?? allRecords.find(item => item.variant.mint === selectedMint)
-    ?? allRecords[0];
+  const current = allRecords.find(item => item.record.id === selectedRecord && item.variant.mint === selectedMint)
+    ?? allRecords.find(item => item.variant.mint === selectedMint);
   const currentRate = current ? metric(current.record, "supplyApy") : null;
   const currentMax = current ? metric(current.record, "maxLtv") : null;
   const currentFresh = current ? updated(current.record) : null;
@@ -119,7 +119,8 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange:onInpu
     } catch { setCopyState("error"); }
   }
 
-  return <section className="scenario-workspace" aria-labelledby="scenario-heading">
+  return <section className={`scenario-workspace${embedded ? " scenario-embedded" : ""}`} aria-label={embedded ? `${mode === "lend" ? "Lending" : "Borrowing"} scenario` : undefined} aria-labelledby={embedded ? undefined : "scenario-heading"}>
+    {!embedded ? <>
     <nav className="breadcrumbs" aria-label="Breadcrumb"><a href="/browse">All assets</a><span>/</span><button type="button" onClick={onBack}>{detail.asset.name}</button><span>/</span><span>{mode === "lend" ? "Lend it" : "Borrow against it"}</span></nav>
     <div className="scenario-mobile-nav"><button className="icon-button" type="button" onClick={onBack} aria-label="Back to asset"><ArrowLeft size={20} /></button><span>{detail.asset.name} · {mode === "lend" ? "Lend" : "Borrow"}</span><button className="icon-button" type="button" onClick={copyScenario} aria-label="Copy scenario link"><Link2 size={20} /></button></div>
     <div className="scenario-tabs" role="group" aria-label="Choose an action">
@@ -128,6 +129,7 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange:onInpu
       <button type="button" disabled>Trade · soon</button><button type="button" disabled>Pools · soon</button>
     </div>
     <h1 id="scenario-heading" className="scenario-heading">{mode === "lend" ? <>What could <em>{amount ? wholeDollars.format(amount) : "your holding"}</em> of {detail.asset.name} earn over <em>{period}</em>?</> : <>How much could you borrow against your {detail.asset.name} — and what if it falls?</>}</h1>
+    </> : null}
     <ActionContext kind={mode === "lend" ? "earn" : "borrow"} symbol={current?.variant.symbol ?? detail.variants.find(variant => variant.mint === selectedMint)?.symbol} provider={current?.record.provider} />
     {mode === "lend" ? <div className="scenario-mobile-result"><p className="eyebrow">{amount ? wholeDollars.format(amount) : "Your amount"} · {period} · {current?.variant.symbol ?? detail.asset.symbol}</p><strong>{income != null ? `≈ ${dollars.format(income)}` : "—"}</strong><p>{currentFresh?.stale || (current && errors[current.variant.mint]) ? "The last rate is still visible. Refresh the market for a new estimate." : currentRate != null ? `At today’s ${pct(currentRate)} annual rate. Variable — lending income only, not price changes.` : "Choose an amount to explore the lending markets we find."}</p></div> : null}
     <div className={`scenario-inputs ${mode === "borrow" ? "borrow-inputs" : ""}`}>
@@ -187,6 +189,6 @@ export function ScenarioExplorer({ detail, selectedMint, inputs, onChange:onInpu
       </aside>
     </div>
     <div className="scenario-share"><p>Share your stock, amount and period. Rates refresh when the link is opened.</p><button className="primary-button" type="button" onClick={copyScenario}>{copyState === "copied" ? <Check size={17} /> : <Link2 size={17} />}{copyState === "copied" ? "Copied" : "Copy link"}</button><span role="status">{copyState === "error" ? "Couldn’t copy. You can copy the address from your browser." : ""}</span></div>
-    <VersionContext detail={detail} selectedMint={selectedMint} onSelect={onSelectMint} cached={{...cached,...Object.fromEntries(Object.entries(responses).map(([mint,response]) => [mint,{response,cachedAt:response.fetchedAt}]))}} />
+    {!embedded ? <VersionContext detail={detail} selectedMint={selectedMint} onSelect={onSelectMint} cached={{...cached,...Object.fromEntries(Object.entries(responses).map(([mint,response]) => [mint,{response,cachedAt:response.fetchedAt}]))}} /> : null}
   </section>;
 }

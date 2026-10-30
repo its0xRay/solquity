@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ScenarioExplorer } from "./scenario-explorer";
+import { DetailDrawer } from "./detail-drawer";
 import { ActionContext, ConceptComparison } from "./action-context";
 import { VersionContext, MorePossibilities } from "./version-context";
 import { contentFor, issuerId, providerName, redemptionLabel } from "@/lib/issuer-content";
@@ -25,7 +26,8 @@ import { StockStrip } from "./stock-strip";
 import { assetUrl } from "@/lib/asset-url";
 import { mergeAssetDetail, mergeProtocolResponse, protocolForDisplay } from "@/lib/progressive-data";
 import { sourceFailure, sourceStale } from "@/lib/source-result";
-import { positiveAmount, type ScenarioInputs, type ScenarioMode } from "@/lib/scenario";
+import { lendingIncome, positiveAmount, type ScenarioInputs, type ScenarioMode } from "@/lib/scenario";
+import { formatScenarioMoney } from "@/lib/scenario-explanation";
 import { preferredCapabilityMint, type CapabilityCoverageIndex } from "@/lib/capability-coverage";
 import type { Asset, AssetDetail, CapabilityRecord, ProtocolCapabilityResponse, RiskSummary, Variant, VenueMarket } from "@/lib/types";
 import { DetailCacheEntry, isDetailCacheFresh } from "@/lib/detail-cache";
@@ -162,7 +164,11 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
   const [detail, setDetail] = useState(initialDetail);
   const [selectedMint, setSelectedMint] = useState(initialSelectedMint);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState<"trade" | "checks" | null>(null);
   const [scenario, setScenario] = useState<ScenarioInputs>(initialScenario);
+  const [amountEditing,setAmountEditing] = useState(false);
+  const showHomeIntro = homeRoute && !initialScenario.mode;
+  const AssetHeading = showHomeIntro ? "h2" : "h1";
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(initialError);
   const [clock, setClock] = useState(() => Date.now());
@@ -218,7 +224,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
   }, [loadUniverse]);
 
   useEffect(() => {
-    if (!assetId || !activeMint || scenario.mode) return;
+    if (!assetId || !activeMint) return;
     const existing = cache.current.get(assetId)?.detail.marketResultsByMint[activeMint];
     if (existing && existing.status === "success" && clock - existing.fetchedAt < 120_000) return;
     const controller = new AbortController();
@@ -284,7 +290,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
     if (!assetId || !activeMint) return;
     const mint = activeMint;
     const previous = protocolCache.current[mint];
-    const groups = (scenario.mode ? ["kamino"] : ["kamino", "pools"]).filter(group => {
+    const groups = ["kamino", "pools"].filter(group => {
       const ids = group === "kamino" ? ["kamino"] : ["meteora","raydium","orca"];
       return !isProtocolCacheFresh(previous,clock) || !ids.every(id => {
         const provider = previous?.response.providers[id];
@@ -391,6 +397,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
   }
 
   async function selectAsset(asset: Asset, force = false) {
+    setExpanded(null);
     if (!force && detail?.asset.assetId !== asset.assetId) trackEvent("stock_selected", {asset: asset.assetId});
     setSearchDialogOpen(false);
     setScenario(current => ({ ...current, mode: null }));
@@ -481,7 +488,19 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
 
   function openScenario(mode: ScenarioMode) {
     setScenario(current => ({ ...current, mode }));
-    window.scrollTo({ top: 0, behavior: preferredScrollBehavior() });
+    setExpanded(mode === "lend" ? "earn" : "borrow");
+  }
+
+  const activeAction = scenario.mode === "lend" ? "earn" : scenario.mode === "borrow" ? "borrow" : expanded;
+  const headlineAmount = !amountEditing && positiveAmount(scenario.amount) !== null ? Number(scenario.amount).toLocaleString("en-US",{maximumFractionDigits:2}) : scenario.amount;
+  function toggleAction(kind: string) {
+    if (activeAction === kind) { setExpanded(null); setScenario(current => ({...current, mode:null})); }
+    else if (kind === "earn" || kind === "borrow") openScenario(kind === "earn" ? "lend" : "borrow");
+    else { setScenario(current => ({...current, mode:null})); setExpanded(kind); }
+  }
+  function scenarioPanel(kind: "earn" | "borrow") {
+    if (!detail || !selectedVariant) return null;
+    return <ScenarioExplorer embedded detail={detail} selectedMint={selectedVariant.mint} inputs={{...scenario,mode:kind === "earn" ? "lend" : "borrow"}} onChange={setScenario} onSelectMint={setSelectedMint} onBack={() => toggleAction(kind)} cached={protocolCapabilitiesByMint} issuerLabel={variant => issuerPresentation(variant).label} />;
   }
 
   const capabilityStatus = <>
@@ -496,6 +515,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
     <main className="page-shell">
       <header className="topbar" id="top">
         <Link className="wordmark" href="/" aria-label="Solquity home"><span className="wordmark-mark" aria-hidden="true"><span /></span>Solquity</Link>
+        <nav className="primary-nav" aria-label="Main navigation"><Link href="/browse">Stocks</Link><button type="button" onClick={() => setDrawer("checks")}>How we check</button></nav>
         <div className="header-actions">
           <button
             className="search-trigger"
@@ -505,7 +525,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
             aria-haspopup="dialog"
             onClick={() => setSearchDialogOpen(true)}
           >
-            <Search size={17} aria-hidden="true" /><span>Search</span>
+            <Search size={17} aria-hidden="true" /><span>Search a company or ETF</span>
           </button>
         </div>
         <dialog
@@ -571,25 +591,18 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
         </dialog>
       </header>
 
-      <StockStrip assets={assets} coverage={capabilityCoverage} selectedId={detail?.asset.assetId} onSelect={asset => { void selectAsset(asset); }} onPrefetch={prefetchAsset} />
+      <section className={showHomeIntro ? "discovery-landing" : "compact-stock-picker"} aria-label="Explore stocks on Solana">
+        {showHomeIntro ? <div className="homepage-intro"><p className="eyebrow">Stocks, on Solana</p><h1>Stocks you know.<br />Now on Solana.</h1><p className="homepage-description">See what a tokenized stock can do, what each version really is, and where to do it.</p></div> : null}
+        <div className="stock-picker"><StockStrip assets={assets} coverage={capabilityCoverage} selectedId={detail?.asset.assetId} onSelect={asset => { void selectAsset(asset); }} onPrefetch={prefetchAsset} /><Link className="strip-see-all" href="/browse">See all <ArrowRight size={16} aria-hidden="true" /></Link></div>
+      </section>
 
-      {scenario.mode && detail && selectedVariant ? <ScenarioExplorer
-        key={detail.asset.assetId}
-        detail={detail}
-        selectedMint={selectedVariant.mint}
-        inputs={scenario}
-        onChange={setScenario}
-        onSelectMint={setSelectedMint}
-        onBack={() => { setScenario(current => ({ ...current, mode: null })); window.scrollTo({ top: 0 }); }}
-        cached={protocolCapabilitiesByMint}
-        issuerLabel={variant => issuerPresentation(variant).label}
-      /> : <section className="capability-stage" id="capability-stage" ref={stageScroll} aria-label="Capability spotlight" aria-busy={Boolean(loadingId)}>
+      <section className="capability-stage discovery-stage" id="capability-stage" ref={stageScroll} aria-label="Capability spotlight" aria-busy={Boolean(loadingId)}>
         {loadingId ? <StageSkeleton /> : detail && selectedVariant ? (
           <>
             <header className="stage-header">
               <div className="identity">
                 <AssetLogo asset={detail.asset} size={64} />
-                <div><h1>{detail.asset.name}</h1><p>{detail.asset.symbol} · {detail.asset.category === "etf" ? "ETF" : "Stock"} · {detail.variants.length} {detail.variants.length === 1 ? "version" : "versions"} on Solana</p></div>
+                <div><AssetHeading>{detail.asset.name}</AssetHeading><p>{detail.asset.symbol} · {detail.asset.category === "etf" ? "ETF" : "Stock"} · {detail.variants.length} {detail.variants.length === 1 ? "version" : "versions"} on Solana</p></div>
               </div>
               <div className="asset-price-context">
                 <small className="token-price-caption" title="Market price for the selected token, not a separate underlying-share quote.">Token price · {selectedVariant.symbol}{selectedVariant.market?.source ? ` · ${selectedVariant.market.source === "birdeye" ? "Birdeye" : selectedVariant.market.source}` : " · Tokens.xyz"} · {relativeTime(selectedVariant.market?.asOf ?? selectedVariant.market?.lastFetchedAt) ?? "Time not reported"}</small>
@@ -598,17 +611,22 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
                 <div className="asset-market-status"><MarketStatusCopy hasReferenceMarket={hasReferenceMarket} session={session} /></div>
               </div>
             </header>
+            <h2 className="exploration-heading">What could <label className="headline-amount"><span className="sr-only">Amount in dollars</span><span aria-hidden="true">$</span><input aria-label="Explore amount in dollars" type="text" inputMode="decimal" autoComplete="off" value={headlineAmount} style={{width:`${Math.max(1,headlineAmount.length)}ch`}} onFocus={() => setAmountEditing(true)} onBlur={() => setAmountEditing(false)} onChange={event => {const value = event.target.value.replaceAll(",","");if (/^\d*\.?\d{0,2}$/.test(value)) setScenario(current => ({...current,amount:value}));}} aria-invalid={scenario.amount !== "" && positiveAmount(scenario.amount) === null} /></label> of {detail.asset.name} do?</h2>
+            {scenario.amount !== "" && positiveAmount(scenario.amount) === null ? <p className="input-error">Enter an amount up to $1 billion.</p> : null}
             <section className="version-selector" aria-labelledby="versions-heading">
-              <p className="eyebrow" id="versions-heading">Version</p>
+              <div className="version-section-heading"><p className="eyebrow" id="versions-heading">{detail.variants.length > 1 ? `Same stock, ${detail.variants.length} versions` : "This version"}</p>
+                <VersionContext key={detail.asset.assetId} presentation="drawer" detail={detail} selectedMint={selectedVariant.mint} onSelect={mint => {setSelectedMint(mint);}} cached={protocolCapabilitiesByMint} />
+              </div>
               <div className="variant-pills" aria-label="Tokenized versions">
                 {detail.variants.map(variant => {
-                  const response = protocolCapabilitiesByMint[variant.mint]?.response;
+                  const entry = protocolCapabilitiesByMint[variant.mint];
+                  const response = entry ? protocolForDisplay(entry.response,clock) : undefined;
                   const kinds = new Set((response?.capabilities ?? []).map(capability => capability.kind));
                   if (detail.displayCapabilitiesByMint[variant.mint]?.some(capability => capability.kind === "trade")) kinds.add("trade");
-                  const count = ["trade", "earn", "borrow", "liquidity"].filter(kind => kinds.has(kind as CapabilityRecord["kind"])).length;
-                  return <button type="button" aria-pressed={variant.mint === selectedVariant.mint} key={variant.mint} onClick={() => { setSelectedMint(variant.mint); setExpanded(null); }}>
-                    <span className="version-card-top"><strong>{variant.symbol}</strong><small>{response ? `${count} ${count === 1 ? "action" : "actions"}` : variant.mint === selectedMint ? "Checking actions…" : "Explore"}</small></span>
-                    <span className="version-card-bottom"><VariantOptionContent variant={variant} /></span>
+                  return <button type="button" aria-pressed={variant.mint === selectedVariant.mint} key={variant.mint} onClick={() => { setSelectedMint(variant.mint); }}>
+                    <span className="version-card-top"><strong>{variant.symbol}<span className="version-provider"> · {issuerPresentation(variant).label}</span></strong></span>
+                    <span className="version-card-bottom"><span className="variant-option-copy">{redemptionLabel(variant)}</span>{!response ? <small className="uses-unchecked">Uses not checked yet</small> : null}</span>
+                    <span className="version-use-dots">{(["trade","earn","borrow","liquidity"] as const).map(kind => <span key={kind} data-found={kinds.has(kind) || undefined}><i aria-hidden="true" />{({trade:"Trade",earn:"Lend",borrow:"Borrow",liquidity:"Pools"})[kind]}<span className="sr-only">{kinds.has(kind) ? ": found" : ": not confirmed"}</span></span>)}</span>
                   </button>;
                 })}
               </div>
@@ -616,45 +634,56 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
             <div className="asset-workspace" aria-label="Asset capabilities and context">
               <section className="capability-panel" aria-labelledby="capabilities-heading">
                 <h2 className="sr-only" id="capabilities-heading">What you can do</h2>
-                {capabilitySentence ? <p className="capability-conclusion">{capabilitySentence.split(" lets you ")[0]} lets you <em>{capabilitySentence.split(" lets you ")[1]}</em></p> : null}
+                {capabilitySentence ? <p className="sr-only">{capabilitySentence}</p> : null}
                 <div className="capability-tree" aria-label="Capability map">
-                  <div className="capability-tree-token"><span className="token-orb" aria-hidden="true">{(detail.asset.symbol ?? "?").slice(0, 1)}</span><strong>{selectedVariant.symbol}</strong><small>{issuerPresentation(selectedVariant).label}</small></div>
                   <div className="capability-tree-branches">
                     {(["trade","earn","borrow","liquidity"] as const).map(kind => {
                       const capability = capabilityPresentations.find(item => item.id === kind);
-                      if (!capability) return pendingKinds[kind] ? <div className="tree-node node-placeholder" aria-hidden="true" key={kind}><span /><span /></div> : null;
+                      if (!capability) {
+                        const failed = capabilityRequestFailed || (kind === "earn" || kind === "borrow" ? kaminoState?.status === "failed" || kaminoState?.partial : kind === "trade" ? selectedMarketResult?.status === "failed" : ["meteora","raydium","orca"].some(id => selectedProtocolCapabilities?.providers[id]?.status === "failed" || selectedProtocolCapabilities?.providers[id]?.partial));
+                        const copy = pendingKinds[kind] ? "Checking markets…" : failed ? "Couldn’t confirm this action" : "No market found where we check";
+                        const title = ({trade:"Trade",earn:"Lend it",borrow:"Borrow against it",liquidity:"Earn trading fees"})[kind];
+                        return <article className="tree-node" data-expanded={activeAction === kind || undefined} key={kind}>
+                          {kind === "earn" || kind === "borrow" ? <button type="button" aria-expanded={activeAction === kind} aria-controls={`tree-${kind}-detail`} onClick={() => toggleAction(kind)}><span className="capability-icon">{kind === "earn" ? <CircleDollarSign size={19} /> : <LockKeyhole size={19} />}</span><span className="tree-node-copy"><strong>{title}</strong><span>{copy}</span></span><ChevronDown size={17} aria-hidden="true" /></button> : <div className="unavailable-node"><span className="tree-node-copy"><strong>{title}</strong><span>{copy}</span></span></div>}
+                          {activeAction === kind && (kind === "earn" || kind === "borrow") ? <div className="tree-node-detail" id={`tree-${kind}-detail`}>{scenarioPanel(kind)}</div> : null}
+                        </article>;
+                      }
                       let stat = "";
-                      if (capability.id === "trade") stat = `${markets.length} ${markets.length === 1 ? "market" : "markets"}`;
-                      if (capability.id === "earn") { const value = capabilityMetric(earnCapabilities[0], "supplyApy"); stat = value ? `${formatRatio(value.value)} APY` : "Variable yield"; }
-                      if (capability.id === "borrow") { const value = capabilityMetric(borrowCapabilities[0], "maxLtv"); stat = value ? `Up to ${formatRatio(value.value)}` : ""; }
+                      let statContext = capability.mapSummary;
+                      if (capability.id === "trade") { stat = `${markets.length} ${markets.length === 1 ? "market" : "markets"}`; statContext = "Solana markets"; }
+                      if (capability.id === "earn") {
+                        const value = capabilityMetric(earnCapabilities[0], "supplyApy");
+                        const amount = positiveAmount(scenario.amount);
+                        const estimate = amount && value && earnCapabilities[0].evidence.status === "active" ? lendingIncome(amount,Number(value.value),365) : null;
+                        stat = estimate != null ? `≈ ${formatScenarioMoney(estimate)} / yr` : value ? `${formatRatio(value.value)} APY` : "Variable yield";
+                        statContext = `${value ? `${formatRatio(value.value)} APY · ` : ""}${earnCapabilities[0].provider}`;
+                      }
+                      if (capability.id === "borrow") {
+                        const value = capabilityMetric(borrowCapabilities[0], "maxLtv");
+                        const amount = positiveAmount(scenario.amount);
+                        stat = value && amount && borrowCapabilities[0].evidence.status === "active" ? `Up to ${money.format(amount * Number(value.value))}` : value ? `Up to ${formatRatio(value.value)}` : "";
+                        statContext = "Reported limit · terms in details";
+                      }
                       if (capability.id === "liquidity") stat = `${liquidityCapabilities.length} ${liquidityCapabilities.length === 1 ? "pool" : "pools"}`;
-                      return <article className="tree-node" data-expanded={expanded === capability.id || undefined} key={capability.id}>
-                        <button type="button" aria-expanded={expanded === capability.id} aria-controls={`tree-${capability.id}-detail`} onClick={() => setExpanded(current => current === capability.id ? null : capability.id)}>
-                          <span className="tree-node-copy"><strong>{capability.title}</strong><span>{capability.mapSummary}</span></span><span className="tree-node-stat">{stat}</span><ChevronDown size={17} aria-hidden="true" />
+                      return <article className="tree-node" data-expanded={activeAction === capability.id || undefined} key={capability.id}>
+                        <button type="button" aria-expanded={activeAction === capability.id} aria-controls={`tree-${capability.id}-detail`} onClick={() => toggleAction(capability.id)}>
+                          <span className="capability-icon">{capability.icon}</span><span className="tree-node-copy"><strong>{capability.title}</strong><span>{({trade:capability.mapSummary,earn:"Lend it out for variable interest",borrow:"Access cash while keeping stock exposure",liquidity:"Add it to a trading pool"})[kind]}</span></span><span className="tree-node-stat">{stat}<small>{statContext}</small></span><ChevronDown size={17} aria-hidden="true" />
                         </button>
-                        {expanded === capability.id ? <div className="tree-node-detail" id={`tree-${capability.id}-detail`}>{capability.detail}{capability.id === "earn" || capability.id === "borrow" ? <button className="outline-button" type="button" onClick={() => openScenario(capability.id === "earn" ? "lend" : "borrow")}>Try an amount <ArrowRight size={16} /></button> : null}</div> : null}
+                        {activeAction === capability.id ? <div className="tree-node-detail" id={`tree-${capability.id}-detail`}>{capability.id === "earn" || capability.id === "borrow" ? scenarioPanel(capability.id) : capability.detail}</div> : null}
                       </article>;
                     })}
                   </div>
                 </div>
                 {capabilityStatus}
               </section>
-              <aside className="asset-sidebar">
-                <section className="try-amount-card" aria-labelledby="try-amount-heading">
-                  <p className="eyebrow">Try an amount</p><h2 id="try-amount-heading">What would this mean for your money?</h2>
-                  <label htmlFor="explore-amount">Amount of {detail.asset.name}</label><div className="amount-input"><span aria-hidden="true">$</span><input id="explore-amount" type="text" inputMode="decimal" autoComplete="off" value={scenario.amount} onChange={event => { if (/^\d*\.?\d{0,2}$/.test(event.target.value)) setScenario(current => ({ ...current, amount: event.target.value })); }} aria-invalid={scenario.amount !== "" && positiveAmount(scenario.amount) === null} /></div>
-                  {scenario.amount !== "" && positiveAmount(scenario.amount) === null ? <p className="input-error">Enter an amount up to $1 billion.</p> : null}
-                  <div className="try-amount-actions"><button className="primary-button" type="button" onClick={() => openScenario("lend")}>What could I earn?<ArrowRight size={16} /></button><button className="outline-button" type="button" onClick={() => openScenario("borrow")}>What could I borrow?<ArrowRight size={16} /></button></div>
-                </section>
-                <section className="version-context" aria-label="Version context"><VariantDetails key={selectedVariant.mint} variant={selectedVariant} marketResult={selectedMarketResult} marketScore={selectedRisk} onOpen={loadTechnicalDetails} /></section>
-              </aside>
             </div>
-            <VersionContext key={detail.asset.assetId} detail={detail} selectedMint={selectedVariant.mint} onSelect={mint => {setSelectedMint(mint);setExpanded(null);}} cached={protocolCapabilitiesByMint} />
             <MorePossibilities mint={selectedVariant.mint} response={selectedProtocolCapabilities} />
+            <section className="technical-disclosure" aria-label="Version context"><VariantDetails key={selectedVariant.mint} variant={selectedVariant} marketResult={selectedMarketResult} marketScore={selectedRisk} onOpen={loadTechnicalDetails} /></section>
           </>
         ) : <div className="empty-state"><strong>No asset selected</strong><p>Choose an asset to inspect its Solana capabilities.</p><button className="primary-button" type="button" onClick={() => setSearchDialogOpen(true)}>Search stocks</button></div>}
         {error ? <div className="inline-error" role="alert"><span>{error}</span><button type="button" onClick={() => detail ? selectAsset(detail.asset, true) : assets[0] && selectAsset(assets[0], true)}>Try again</button></div> : null}
-      </section>}
+      </section>
+      <DetailDrawer open={drawer === "checks"} onClose={() => setDrawer(null)} title="How we check"><p className="drawer-lead">Explore tokenized stocks on Solana. No wallet needed.</p><p>Solquity uses data from Tokens.xyz and integrated protocols including Kamino, Meteora, Raydium, and Orca. Values may be cached.</p><div className="check-explanations"><h3>Prices and markets</h3><p>Each result shows its source and update time. If a refresh fails, last-known data stays labelled.</p><h3>Ownership and redemption</h3><p>Provider documents support the ownership copy. Source checks detect text changes and link failures; changes need review before the copy is updated.</p><h3>Scenarios</h3><p>Estimates use the reported market rate. Rates can change. Transactions happen on the external platform.</p></div></DetailDrawer>
 
       <footer className="app-footer" aria-label="Site footer">
         <Link className="footer-brand" href="/" aria-label="Solquity home">
@@ -662,8 +691,7 @@ export function CapabilityExplorer({ assets: initialAssets, capabilityCoverage, 
           <span>Solquity</span>
         </Link>
         <nav className="footer-links" aria-label="Footer navigation">
-          <span className="footer-market-status footer-market-full"><MarketStatusCopy hasReferenceMarket={hasReferenceMarket} session={session} /></span>
-          <span className="footer-market-status footer-market-compact"><MarketStatusCopy hasReferenceMarket={hasReferenceMarket} session={session} compact /></span>
+          <span className="footer-market-status"><MarketStatusCopy hasReferenceMarket={hasReferenceMarket} session={session} /></span>
           <span className="footer-separator" aria-hidden="true" />
           <Link href="/browse">All stocks</Link>
           <span className="footer-separator" aria-hidden="true" />
@@ -690,33 +718,10 @@ function XBrandIcon() {
   </svg>;
 }
 
-function MarketStatusCopy({ hasReferenceMarket, session, compact = false }: { hasReferenceMarket: boolean; session: ReturnType<typeof referenceSession>; compact?: boolean }) {
-  if (!(hasReferenceMarket && session.supported)) {
-    return compact
-      ? <>Solana <span className="status-open">24/7</span></>
-      : <>Solana markets <span className="status-open">open 24/7</span></>;
-  }
-  return compact ? <>
-    US <span className={session.isOpen ? "status-open" : "status-closed"}>{session.isOpen ? "open" : "closed"}</span>
-    <span className="status-separator" aria-hidden="true">·</span>
-    Solana <span className="status-open">24/7</span>
-  </> : <>
-    US market <span className={session.isOpen ? "status-open" : "status-closed"}>{session.isOpen ? "open" : "closed"}</span>
-    <span className="status-separator" aria-hidden="true">·</span>
-    Solana markets <span className="status-open">open 24/7</span>
-  </>;
-}
-
-function VariantOptionContent({ variant }: { variant: Variant }) {
-  const issuer = issuerPresentation(variant);
+function MarketStatusCopy({ hasReferenceMarket, session }: { hasReferenceMarket: boolean; session: ReturnType<typeof referenceSession> }) {
   return <>
-    {issuer.logo
-      ? <img className="variant-issuer-mark" data-issuer={issuer.id} src={issuer.logo} alt="" width={20} height={20} aria-hidden="true" />
-      : <span className="variant-issuer-fallback" aria-hidden="true">{issuer.label.slice(0, 1)}</span>}
-    <span className="variant-option-copy">
-      <strong title={variant.label ?? variant.issuer ?? "Version"}>{issuer.label}</strong>
-      <small>{redemptionLabel(variant)}</small>
-    </span>
+    {hasReferenceMarket && session.supported ? <><span className="market-session">US markets <span className={session.isOpen ? "status-open" : "status-closed"}>{session.isOpen ? "open" : "closed"}</span></span><span className="status-separator" aria-hidden="true">·</span></> : null}
+    <span className="market-session">Solana <span className="status-open">open 24/7</span></span>
   </>;
 }
 

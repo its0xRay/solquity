@@ -2,6 +2,7 @@
 
 import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { DetailDrawer } from "./detail-drawer";
 import { contentFor, identitySource, issuerId, providerName, redemptionLabel } from "@/lib/issuer-content";
 import type { IssuerChecks } from "@/lib/issuer-source-check";
 import type { ProtocolCacheEntry } from "@/lib/protocol-cache";
@@ -11,11 +12,12 @@ import type { AssetDetail, ProtocolCapabilityResponse, Variant } from "@/lib/typ
 const reviewDate = (date:string) => new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});
 const checkTime = (time:number) => new Date(time).toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",timeZone:"UTC",timeZoneName:"short"});
 
-export function VersionContext({detail,selectedMint,onSelect,cached}: {detail:AssetDetail;selectedMint:string;onSelect:(mint:string)=>void;cached:Record<string,ProtocolCacheEntry>}) {
+export function VersionContext({detail,selectedMint,onSelect,cached,presentation = "inline"}: {detail:AssetDetail;selectedMint:string;onSelect:(mint:string)=>void;cached:Record<string,ProtocolCacheEntry>;presentation?:"inline"|"drawer"}) {
   const variant = detail.variants.find(item => item.mint === selectedMint) ?? detail.variants[0];
   const content = variant ? contentFor(variant) : undefined;
   const [expanded,setExpanded] = useState(false);
   const [compare,setCompare] = useState(false);
+  const [drawerOpen,setDrawerOpen] = useState(false);
   const [checks,setChecks] = useState<Record<string,IssuerChecks>>({});
   const [checkErrors,setCheckErrors] = useState<Record<string,boolean>>({});
   const [responses,setResponses] = useState<Record<string,ProtocolCapabilityResponse>>({});
@@ -26,7 +28,7 @@ export function VersionContext({detail,selectedMint,onSelect,cached}: {detail:As
 
   useEffect(() => () => comparisonRequest.current?.abort(),[]);
   useEffect(() => {
-    if (!expanded && !compare) return;
+    if ((!expanded && !compare) || (presentation === "drawer" && !drawerOpen)) return;
     const controller = new AbortController();
     const ids = [...new Set((compare ? detail.variants : variant ? [variant] : []).flatMap(item => {const id = issuerId(item);return id ? [id] : [];}))];
     for (const id of ids) {
@@ -39,7 +41,7 @@ export function VersionContext({detail,selectedMint,onSelect,cached}: {detail:As
       }).catch(() => {if (!controller.signal.aborted) setCheckErrors(current => ({...current,[id]:true}));});
     }
     return () => controller.abort();
-  },[expanded,compare,detail.asset.assetId,detail.variants,variant]);
+  },[expanded,compare,detail.asset.assetId,detail.variants,variant,presentation,drawerOpen]);
 
   async function loadComparison() {
     if (loaded.current) return;
@@ -83,7 +85,7 @@ export function VersionContext({detail,selectedMint,onSelect,cached}: {detail:As
     })}</div>;
   }
 
-  return <section className="ownership-panel" aria-label="This version">
+  const panel = <section className="ownership-panel" aria-label="This version">
     <div className="ownership-header"><p className="eyebrow">This version</p><div className="ownership-versions" aria-label="Ownership version">{detail.variants.map(item => <button type="button" key={item.mint} aria-pressed={item.mint === variant.mint} onClick={() => onSelect(item.mint)}><strong>{item.symbol ?? "Token"}</strong><span>{providerLabel(item)}</span></button>)}</div>{detail.variants.length > 1 ? <button className="text-button ownership-compare" type="button" aria-expanded={compare} onClick={() => {setCompare(value => !value);if (!compare) void loadComparison();}}>{compare ? "Close comparison" : "Compare versions"}{compare ? " ×" : " →"}</button> : null}</div>
     {compare ? <div className="ownership-comparison" aria-label="Version comparison" aria-busy={loading}>
       <p className="comparison-summary">Different providers, different exit routes. {detail.variants.map((item,index) => {const info = contentFor(item);const source = identitySource(item);return <span key={item.mint}>{index ? "; " : ""}{source ? <a href={source} target="_blank" rel="noreferrer">{item.symbol}</a> : item.symbol}: {info?.id === "xstocks" ? "shares or cash" : info?.id === "ondo" ? "cash or stablecoins" : info?.id === "backpack" ? "shares in a Backpack account" : "terms not reviewed"}</span>;})}. Access requirements and supported uses are below.</p>
@@ -108,6 +110,12 @@ export function VersionContext({detail,selectedMint,onSelect,cached}: {detail:As
       <div className="ownership-sources"><h3>Sources</h3><div className="identity-mint"><span>Solana token</span><a href={`https://solscan.io/token/${encodeURIComponent(variant.mint)}`} target="_blank" rel="noreferrer">{variant.mint}</a>{identitySource(variant) ? <a href={identitySource(variant)} target="_blank" rel="noreferrer">Provider & token source ↗</a> : <small>Provider not verified</small>}</div>{content?.sources.map(source => {const check = sourceChecks?.checks.find(item => item.id === source.id);return <div key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.label}<ArrowUpRight size={13} aria-hidden="true" /></a><small className={check && check.status !== "unchanged" ? "is-stale" : ""}>{!check ? checkErrors[content.id] ? "Check unavailable" : "Checking source…" : `${check.status === "unchanged" ? "No text change" : check.status === "changed" ? "Changed · review pending" : check.status === "unreviewed" ? "Baseline not reviewed" : "Couldn’t check"} · ${checkTime(check.checkedAt)}`}</small></div>;})}<p className="ownership-footnote">Source checks detect text changes and link failures. They do not test a conversion or confirm your eligibility.</p></div>
     </div> : null}
   </section>;
+  if (presentation === "inline") return panel;
+  return <div className="ownership-entry-points">
+    <button className="inline-disclosure" type="button" onClick={() => {setCompare(false);setExpanded(false);setDrawerOpen(true);}}>What am I holding?</button>
+    {detail.variants.length > 1 ? <button className="inline-disclosure" type="button" onClick={() => {setCompare(true);setExpanded(false);setDrawerOpen(true);void loadComparison();}}>Compare versions →</button> : null}
+    <DetailDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title={compare ? "Same stock. Different versions." : "What am I holding?"}>{panel}</DetailDrawer>
+  </div>;
 }
 
 export function MorePossibilities({mint,response}: {mint:string;response?:ProtocolCapabilityResponse}) {
